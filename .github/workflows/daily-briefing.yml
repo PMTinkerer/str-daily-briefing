@@ -1,0 +1,41 @@
+name: Daily Briefing
+
+on:
+  schedule:
+    # 4:30 AM ET = 09:30 UTC (EST) / 08:30 UTC (EDT)
+    # Using 09:30 UTC to cover EST; adjust to 08:30 during daylight saving if needed
+    - cron: "30 9 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  send-briefing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write Gmail credentials
+        env:
+          GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
+          GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
+        run: |
+          echo "$GMAIL_CREDENTIALS_JSON" > credentials.json
+          echo "$GMAIL_TOKEN_JSON" > token.json
+
+      - name: Run daily briefing
+        env:
+          GMAIL_CREDENTIALS_PATH: credentials.json
+          GMAIL_TOKEN_PATH: token.json
+          BRIEFING_RECIPIENTS: ${{ secrets.BRIEFING_RECIPIENTS }}
+          REPORT_SENDER_GUESTY: ${{ secrets.REPORT_SENDER_GUESTY }}
+          REPORT_SENDER_BREEZEWAY: ${{ secrets.REPORT_SENDER_BREEZEWAY }}
+        run: python -m src.main
