@@ -30,3 +30,9 @@ htmlcov/
 .env
 token.json
 credentials.json
+
+# Dashboard — only track generated output, not intermediate files
+docs/*
+!docs/index.html
+!docs/assets/
+!docs/assets/**

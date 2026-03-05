@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STR Daily Briefing — Wednesday, March 4, 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --bg: #1a1f2e;
+  --surface: #232a3b;
+  --surface2: #2d3550;
+  --teal: #2ba5b5;
+  --teal-dim: rgba(43,165,181,0.15);
+  --alert: #e74c3c;
+  --alert-dim: rgba(231,76,60,0.15);
+  --warn: #f39c12;
+  --warn-dim: rgba(243,156,18,0.15);
+  --text: #e8eaf0;
+  --muted: #8892a4;
+  --border: #2d3550;
+  --radius: 10px;
+  --owner: #9b59b6;
+  --owner-dim: rgba(155,89,182,0.15);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.site-header {
+  background: linear-gradient(135deg, #0f1320 0%, #1a2540 50%, #1a1f2e 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+}
+.header-inner { max-width: 900px; margin: 0 auto; }
+.header-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.site-header h1 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+.header-sub { color: var(--teal); }
+.header-date {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* ── Quality banner ── */
+.quality-banner {
+  background: var(--warn-dim);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  padding: 0.75rem 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* ── Layout ── */
+.section {
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 0 1.25rem;
+}
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.section-title--alert { color: var(--alert); }
+.section-title--owner { color: var(--owner); }
+
+/* ── Fade-in animation ── */
+.fade-in { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.fade-in.visible { opacity: 1; transform: none; }
+
+/* ── Narrative ── */
+.narrative-card {
+  display: flex;
+  gap: 1rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+.narrative-accent {
+  flex-shrink: 0;
+  width: 4px;
+  background: var(--teal);
+  border-radius: 4px;
+}
+.narrative-body { color: var(--text); line-height: 1.8; font-size: 0.97rem; }
+.narrative-body h3 { color: var(--teal); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 1.1rem 0 0.3rem; }
+.narrative-body h4 { color: var(--muted); font-size: 0.9rem; font-weight: 600; margin: 0.8rem 0 0.25rem; }
+.narrative-body p { margin-bottom: 0.7rem; }
+.narrative-body p:last-child { margin-bottom: 0; }
+.narrative-body ul { padding-left: 1.4rem; margin-bottom: 0.7rem; }
+.narrative-body li { margin-bottom: 0.2rem; }
+.narrative-body ul:last-child { margin-bottom: 0; }
+
+/* ── Stat cards ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 700px) { .card-grid { grid-template-columns: 1fr; } }
+@media (min-width: 701px) and (max-width: 900px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.card--warn { background: var(--warn-dim); border-color: var(--warn); }
+.card--alert { background: var(--alert-dim); border-color: var(--alert); }
+.card-label { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.4rem; }
+.card-value { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 0.5rem; }
+.card--warn .card-value { color: var(--warn); }
+.card--alert .card-value { color: var(--alert); }
+.card-detail { font-size: 0.85rem; color: var(--muted); }
+
+.prop-list { list-style: none; padding: 0; margin-top: 0.5rem; }
+.prop-list li { font-size: 0.8rem; color: var(--muted); padding: 2px 0; }
+.prop-list li::before { content: "• "; color: var(--teal); }
+.empty { font-size: 0.82rem; color: var(--muted); font-style: italic; }
+
+/* ── Charts ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.chart-title { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ── Tables ── */
+.table-spacer { height: 1.5rem; }
+.table-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 1rem 0 0.5rem; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.data-table th {
+  background: var(--surface2);
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.data-table th:first-child { text-align: left; }
+.data-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  color: var(--text);
+}
+.data-table td:first-child { text-align: left; }
+.data-table tbody tr:hover { background: var(--surface2); }
+.city-cell { font-weight: 500; color: var(--text); }
+.today-col { background: var(--teal-dim) !important; color: var(--teal) !important; font-weight: 600; }
+.total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+
+/* ── Overdue table ── */
+.overdue-table th { background: var(--alert-dim); color: var(--alert); }
+.days-overdue { color: var(--alert); font-weight: 700; }
+.task-link { color: var(--teal); text-decoration: none; font-size: 0.8rem; }
+.task-link:hover { text-decoration: underline; }
+
+/* ── Owner stays table ── */
+.owner-table-wrap {
+  border-left: 4px solid var(--owner);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.owner-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+.owner-table th {
+  background: var(--owner-dim);
+  color: var(--owner);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .6rem 1rem;
+  text-align: left;
+}
+.owner-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
+.owner-table tbody tr:last-child td { border-bottom: none; }
+.owner-table tbody tr:hover { background: var(--surface2); }
+.os-date { color: var(--owner); font-weight: 600; white-space: nowrap; width: 120px; }
+.os-prop { color: var(--text); }
+.os-empty { color: var(--muted); font-style: italic; text-align: center; padding: 1.25rem; }
+
+/* ── Footer ── */
+.site-footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+}
+
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-logo">🏖</div>
+    <h1>Grand Welcome STR<br><span class="header-sub">Daily Briefing</span></h1>
+    <p class="header-date">Wednesday, March 4, 2026</p>
+  </div>
+</header>
+
+<section class="section fade-in">
+  <h2 class="section-title">Morning Briefing</h2>
+  <div class="narrative-card">
+    <div class="narrative-accent"></div>
+    <div class="narrative-body"><h3>Morning Briefing - Wednesday, March 4, 2026</h3>
+<p>Good morning team,</p>
+<h3>🚨 URGENT: Guest Request Overdue</h3>
+<p>We have a <strong>guest-initiated request that&#x27;s 4 days overdue</strong> at Sandpiper by the Sea (Ogunquit) - extra towels requested on Feb 14 with a Feb 28 due date. This is currently unassigned and sitting in Guest Experience. This needs immediate resolution this morning - guests are likely still on property and this directly impacts their experience. Let&#x27;s get someone on this within the hour.</p>
+<h3>Today&#x27;s Activity</h3>
+<p>Quiet day operationally - we have <strong>1 check-in only</strong>: Ocean Sunrise in Old Orchard Beach (sleeps 18, 10-night stay via Airbnb, $839 commission). No checkouts, no same-day turns, and no inspections scheduled. This is a great opportunity to tackle that overdue guest request and focus on getting ahead of maintenance issues.</p>
+<h3>Yesterday&#x27;s Bookings &amp; Revenue</h3>
+<p>Solid booking day yesterday with <strong>2 new reservations totaling $840 in commission</strong> (1 Airbnb, 1 Manual booking). Month-to-date we&#x27;re at $2,009 in commission across our portfolio. Ocean Sunrise continues to lead revenue performance at $26.3K total commission, followed by Sandpiper by the Sea - House &amp; Cottage at $17.1K.</p>
+<h3>Operational Issues</h3>
+<p>Beyond the urgent guest towel request, we have an <strong>HVAC repair at Cape Neddick Coastal Hideaway (York) that&#x27;s 4 days overdue</strong>, assigned to Bob Smith since Feb 20. This needs closure today or a clear timeline. We have 5 total tasks in the system (3 Housekeeping, 1 Maintenance, 1 Guest Experience), with Maria Santos carrying 2 tasks over the next week. The week ahead is light: 1 check-in tomorrow in York, 1 in Scarborough on Friday, then 2 inspections scheduled for Monday (March 10) in Ogunquit and York.</p>
+<p>Let&#x27;s nail that guest request first thing - call me if there are any roadblocks.</p></div>
+  </div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title">Today at a Glance</h2>
+  <div class="card-grid">
+
+    <div class="card">
+      <div class="card-label">Check-ins</div>
+      <div class="card-value">1</div>
+      <ul class='prop-list'><li>Ocean Sunrise</li></ul>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Check-outs</div>
+      <div class="card-value">0</div>
+      <span class="empty">None today</span>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Same-Day Turns</div>
+      <div class="card-value">0</div>
+      <span class="empty">None today</span>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Yesterday's Bookings</div>
+      <div class="card-value">2</div>
+      <div class="card-detail">$839.70 commission</div>
+    </div>
+
+    <div class="card card--alert">
+      <div class="card-label">Overdue Tasks</div>
+      <div class="card-value">2</div>
+      <div class="card-detail">Requires attention</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Est. Hours Today</div>
+      <div class="card-value">0.0h</div>
+      <div class="card-detail">0 inspections · 0 owner stays</div>
+    </div>
+
+  </div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title section-title--owner">Owner Stays — Next 7 Days</h2>
+  <div class="owner-table-wrap">
+    <table class="owner-table">
+      <thead><tr><th>Date</th><th>Property</th></tr></thead>
+      <tbody><tr><td colspan="2" class="os-empty">No owner stays scheduled</td></tr></tbody>
+    </table>
+  </div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title">Charts</h2>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3 class="chart-title">Commission by Platform</h3>
+      <canvas id="chartPlatform"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3 class="chart-title">7-Day Check-ins by City</h3>
+      <canvas id="chartCheckins"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3 class="chart-title">Tasks Overview</h3>
+      <canvas id="chartTasks"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3 class="chart-title">Yesterday's Bookings by Platform</h3>
+      <canvas id="chartYesterday"></canvas>
+    </div>
+  </div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title">Rolling 7-Day Outlook</h2>
+  <h3 class="table-subtitle">Check-ins by City</h3>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>City</th><th class="today-col">Wed 3/4</th><th class="">Thu 3/5</th><th class="">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th></tr></thead>
+  <tbody>
+    <tr><td class='city-cell'>Old Orchard Beach</td><td class="today-col">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td></tr><tr><td class='city-cell'>Scarborough</td><td class="today-col">0</td><td class="">0</td><td class="">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td></tr><tr><td class='city-cell'>York</td><td class="today-col">0</td><td class="">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td></tr>
+    <tr class="total-row"><td>Total</td><td class="today-col">1</td><td class="">1</td><td class="">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td></tr>
+  </tbody>
+</table>
+</div>
+  <div class="table-spacer"></div>
+  <h3 class='table-subtitle'>Same-Day Turns by City</h3><p class='empty'>No data</p>
+  <div class="table-spacer"></div>
+  <h3 class="table-subtitle">Arrival Inspections by City</h3>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>City</th><th class="today-col">Wed 3/4</th><th class="">Thu 3/5</th><th class="">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th></tr></thead>
+  <tbody>
+    <tr><td class='city-cell'>Ogunquit</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td></tr><tr><td class='city-cell'>York</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td></tr>
+    <tr class="total-row"><td>Total</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">2</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title section-title--alert">⚠ Overdue Tasks</h2>
+  <div class="table-wrap">
+  <table class="data-table overdue-table">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Task</th>
+        <th>Due Date</th>
+        <th>Days Overdue</th>
+        <th>Link</th>
+      </tr>
+    </thead>
+    <tbody><tr>
+  <td>Sandpiper by the Sea</td>
+  <td>Guest Request - Extra Towels</td>
+  <td>2026-02-28</td>
+  <td class="days-overdue">4d</td>
+  <td><a href="https://portal.breezeway.io/task/report/ccc" target="_blank" class="task-link">View ↗</a></td>
+</tr><tr>
+  <td>Cape Neddick Coastal Hideaway</td>
+  <td>HVAC Repair</td>
+  <td>2026-02-28</td>
+  <td class="days-overdue">4d</td>
+  <td><a href="https://portal.breezeway.io/task/report/ddd" target="_blank" class="task-link">View ↗</a></td>
+</tr></tbody>
+  </table>
+  </div>
+</section>
+<footer class="site-footer">
+  <p>Generated by <strong>STR Daily Briefing</strong> · 2026-03-04 20:10 · Powered by Claude AI</p>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ── Injected data ───────────────────────────────────────────────
+const PLATFORM_DATA = {"labels": ["HomeAway", "Airbnb", "Booking.com", "Manual", "vacayHome"], "data": [106900.49, 61518.21, 10938.92, 7931.23, 437.34]};
+const CHECKINS_DATA = {"labels": ["Wed 3/4", "Thu 3/5", "Fri 3/6", "Sat 3/7", "Sun 3/8", "Mon 3/9", "Tue 3/10"], "datasets": [{"label": "Old Orchard Beach", "data": [1, 0, 0, 0, 0, 0, 0], "backgroundColor": "#2ba5b5", "borderRadius": 2}, {"label": "Scarborough", "data": [0, 0, 1, 0, 0, 0, 0], "backgroundColor": "#e67e22", "borderRadius": 2}, {"label": "York", "data": [0, 1, 0, 0, 0, 0, 0], "backgroundColor": "#9b59b6", "borderRadius": 2}]};
+const TASKS_DATA    = {"labels": ["Overdue", "Other"], "data": [2, 3], "colors": ["#e74c3c", "#4a5568"]};
+const YESTERDAY_DATA = {"labels": ["Airbnb", "Manual"], "data": [1, 1]};
+
+// ── Chart defaults ──────────────────────────────────────────────
+Chart.defaults.color = '#8892a4';
+Chart.defaults.borderColor = '#2d3550';
+Chart.defaults.font.family = "'Inter', sans-serif";
+
+const TEAL = '#2ba5b5';
+const ALERT = '#e74c3c';
+const WARN = '#f39c12';
+
+// Commission by Platform (horizontal bar)
+new Chart(document.getElementById('chartPlatform'), {
+  type: 'bar',
+  data: {
+    labels: PLATFORM_DATA.labels,
+    datasets: [{
+      label: 'Commission ($)',
+      data: PLATFORM_DATA.data,
+      backgroundColor: TEAL,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { callback: v => '$' + v.toLocaleString() } },
+      y: { grid: { display: false } },
+    }
+  }
+});
+
+// 7-day check-ins by city (stacked bar)
+new Chart(document.getElementById('chartCheckins'), {
+  type: 'bar',
+  data: CHECKINS_DATA,
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, ticks: { stepSize: 1 } },
+    }
+  }
+});
+
+// Tasks overview (doughnut)
+new Chart(document.getElementById('chartTasks'), {
+  type: 'doughnut',
+  data: {
+    labels: TASKS_DATA.labels,
+    datasets: [{
+      data: TASKS_DATA.data,
+      backgroundColor: TASKS_DATA.colors,
+      borderWidth: 2,
+      borderColor: '#232a3b',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+    cutout: '60%',
+  }
+});
+
+// Yesterday's bookings by platform (bar)
+new Chart(document.getElementById('chartYesterday'), {
+  type: 'bar',
+  data: {
+    labels: YESTERDAY_DATA.labels,
+    datasets: [{
+      label: 'Reservations',
+      data: YESTERDAY_DATA.data,
+      backgroundColor: TEAL,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { ticks: { stepSize: 1 } },
+    }
+  }
+});
+
+// ── Scroll fade-in ──────────────────────────────────────────────
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+  { threshold: 0.08 }
+);
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body></html>

@@ -38,6 +38,7 @@ def compute_kpis(
         "yesterday_bookings": _compute_yesterday_bookings(guesty_reservations, yesterday),
         "revenue": _compute_revenue(guesty_reservations, report_month),
         "rolling_7_days": _compute_rolling_7_days(guesty_reservations, breezeway_tasks, next_7),
+        "operations_detail": _compute_operations_detail(breezeway_tasks, next_7, today),
         "data_quality": {
             "guesty_available": bool(guesty_reservations),
             "breezeway_available": bool(breezeway_tasks),
@@ -78,6 +79,18 @@ def _compute_today(
         if t["status"] == "Overdue"
         or (t["due_date"] and t["due_date"] < today)
     ]
+    high_priority_overdue = [
+        t for t in overdue_tasks
+        if t.get("priority", "").lower() == "high"
+    ]
+    guest_requests_overdue = [
+        t for t in overdue_tasks
+        if t.get("requested_by", "").strip().lower() == "guest"
+    ]
+    tasks_by_department = dict(Counter(
+        t.get("department", "") or "Unknown"
+        for t in tasks_due_today
+    ))
     total_estimated_hours_today = sum(
         t["estimated_time_minutes"] for t in tasks_due_today
     ) / 60
@@ -89,6 +102,9 @@ def _compute_today(
         "inspections": inspections,
         "owner_stays": owner_stays,
         "overdue_tasks": overdue_tasks,
+        "high_priority_overdue": high_priority_overdue,
+        "guest_requests_overdue": guest_requests_overdue,
+        "tasks_by_department": tasks_by_department,
         "total_estimated_hours_today": round(total_estimated_hours_today, 2),
     }
 
@@ -185,4 +201,40 @@ def _compute_rolling_7_days(
         "same_day_turns_by_city": same_day_turns_by_city,
         "inspections_by_city": inspections_by_city,
         "owner_stays_by_day": owner_stays_by_day,
+    }
+
+
+def _compute_operations_detail(tasks: list[dict], next_7: list[str], today: str) -> dict:
+    """Build the 'operations_detail' KPI section.
+
+    Args:
+        tasks: All Breezeway tasks from parse_breezeway_report().
+        next_7: List of 7 YYYY-MM-DD date strings starting from today.
+        today: Report date in YYYY-MM-DD format.
+
+    Returns:
+        Dict with keys: tasks_by_department_all, assignee_workload_7_days, stale_tasks.
+    """
+    stale_cutoff = (date.fromisoformat(today) - timedelta(days=14)).strftime("%Y-%m-%d")
+
+    dept_all: dict[str, int] = {}
+    for t in tasks:
+        dept = t.get("department", "") or "Unknown"
+        dept_all[dept] = dept_all.get(dept, 0) + 1
+
+    assignee_workload: dict[str, int] = {}
+    for t in tasks:
+        if t["due_date"] in next_7 and t.get("assignee", "").strip():
+            name = t["assignee"].strip()
+            assignee_workload[name] = assignee_workload.get(name, 0) + 1
+
+    stale = [
+        t for t in tasks
+        if t.get("last_updated_date") and t["last_updated_date"] < stale_cutoff
+    ]
+
+    return {
+        "tasks_by_department_all": dept_all,
+        "assignee_workload_7_days": assignee_workload,
+        "stale_tasks": stale,
     }

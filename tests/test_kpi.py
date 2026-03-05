@@ -37,6 +37,12 @@ def _make_task(
     estimated_time_minutes: int,
     city: str,
     property_name: str,
+    *,
+    department: str = "",
+    priority: str = "",
+    assignee: str = "",
+    requested_by: str = "",
+    last_updated_date: str = "",
 ) -> dict:
     return {
         "task_title": task_title,
@@ -50,6 +56,12 @@ def _make_task(
         "estimated_time_minutes": estimated_time_minutes,
         "created_date": TEST_DATE,
         "task_report_link": "",
+        "department": department,
+        "priority": priority,
+        "assignee": assignee,
+        "requested_by": requested_by,
+        "created_by": "",
+        "last_updated_date": last_updated_date,
     }
 
 
@@ -82,6 +94,16 @@ def tasks() -> list[dict]:
         _make_task(YESTERDAY, "Cleaning", "Overdue", 120, "Kennebunk", "Farm Stay"),
         # T5: future inspection
         _make_task("2026-03-05", "Arrival Inspection - E", "Created", 30, "Ogunquit", "Hideaway"),
+        # T6: high-priority overdue (Maintenance)
+        _make_task(YESTERDAY, "HVAC Repair", "Overdue", 120, "York", "Sea Cottage",
+                   department="Maintenance", priority="High"),
+        # T7: guest-initiated overdue, stale (last updated 32 days before TEST_DATE)
+        _make_task(YESTERDAY, "Guest Request - Extra Towels", "Overdue", 15, "Ogunquit", "Beach House",
+                   department="Guest Experience", priority="High", requested_by="Guest",
+                   last_updated_date="2026-02-01"),
+        # T8: future task with assignee (in next-7-day window from TEST_DATE=2026-03-04)
+        _make_task("2026-03-06", "Pool Inspection - L", "Created", 45, "York", "Sea Cottage",
+                   department="Housekeeping", assignee="Maria Santos"),
     ]
 
 
@@ -93,7 +115,10 @@ def kpis(reservations: list[dict], tasks: list[dict]) -> dict:
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
 def test_top_level_keys(kpis: dict) -> None:
-    assert set(kpis.keys()) == {"today", "yesterday_bookings", "revenue", "rolling_7_days", "data_quality"}
+    assert set(kpis.keys()) == {
+        "today", "yesterday_bookings", "revenue",
+        "rolling_7_days", "data_quality", "operations_detail",
+    }
 
 
 def test_same_day_turns(kpis: dict) -> None:
@@ -128,7 +153,10 @@ def test_owner_stays_excluded_from_inspections(kpis: dict) -> None:
 
 def test_empty_input() -> None:
     result = compute_kpis([], [], TEST_DATE)
-    assert set(result.keys()) == {"today", "yesterday_bookings", "revenue", "rolling_7_days", "data_quality"}
+    assert set(result.keys()) == {
+        "today", "yesterday_bookings", "revenue",
+        "rolling_7_days", "data_quality", "operations_detail",
+    }
     assert result["today"]["checkins"] == []
     assert result["today"]["same_day_turns"] == []
     assert result["yesterday_bookings"]["new_commission"] == 0.0
@@ -140,3 +168,35 @@ def test_empty_input() -> None:
 def test_total_estimated_hours_today(kpis: dict) -> None:
     # T1(60) + T2(45) + T3(30) = 135 min = 2.25 hours
     assert kpis["today"]["total_estimated_hours_today"] == pytest.approx(2.25)
+
+
+def test_high_priority_overdue(kpis: dict) -> None:
+    hp = kpis["today"]["high_priority_overdue"]
+    titles = [t["task_title"] for t in hp]
+    assert "HVAC Repair" in titles
+    assert "Guest Request - Extra Towels" in titles
+
+
+def test_guest_requests_overdue(kpis: dict) -> None:
+    gr = kpis["today"]["guest_requests_overdue"]
+    assert len(gr) == 1
+    assert gr[0]["task_title"] == "Guest Request - Extra Towels"
+
+
+def test_operations_detail_keys(kpis: dict) -> None:
+    od = kpis["operations_detail"]
+    assert set(od.keys()) == {"tasks_by_department_all", "assignee_workload_7_days", "stale_tasks"}
+
+
+def test_stale_tasks(kpis: dict) -> None:
+    stale = kpis["operations_detail"]["stale_tasks"]
+    titles = [t["task_title"] for t in stale]
+    # T7 last_updated=2026-02-01, cutoff=TEST_DATE-14=2026-02-18 → stale
+    assert "Guest Request - Extra Towels" in titles
+
+
+def test_assignee_workload(kpis: dict) -> None:
+    workload = kpis["operations_detail"]["assignee_workload_7_days"]
+    # T8 due 2026-03-06, within next 7 days of TEST_DATE=2026-03-04
+    assert "Maria Santos" in workload
+    assert workload["Maria Santos"] >= 1

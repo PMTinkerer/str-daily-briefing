@@ -57,7 +57,10 @@ def _parse_row(row: dict, row_num: int) -> dict:
         row_num: Row number for logging context.
 
     Returns:
-        Task dict with all expected keys.
+        Task dict with all expected keys:
+            task_title, property_name, property_address, property_tags, city, tier,
+            due_date, status, estimated_time_minutes, created_date, task_report_link,
+            department, priority, assignee, requested_by, created_by, last_updated_date.
     """
     raw_property = (row.get("Property") or "").strip()
     if " - " in raw_property:
@@ -79,6 +82,12 @@ def _parse_row(row: dict, row_num: int) -> dict:
         "estimated_time_minutes": _parse_estimated_time(row.get("Estimated time") or "", row_num),
         "created_date": _parse_date(row.get("Created date") or "", row_num, "created_date"),
         "task_report_link": (row.get("Task report link") or "").strip(),
+        "department": (row.get("Department") or "").strip(),
+        "priority": (row.get("Priority") or "").strip(),
+        "assignee": (row.get("Assignees") or "").strip(),
+        "requested_by": (row.get("Requested by") or "").strip(),
+        "created_by": (row.get("Created by") or "").strip(),
+        "last_updated_date": _parse_date(row.get("Last updated date") or "", row_num, "last_updated_date"),
     }
 
 

@@ -24,7 +24,9 @@ SYSTEM_PROMPT = (
     "any overdue tasks or operational issues, and the week ahead. "
     "Be direct, use specific numbers and property names, flag anything unusual or that needs "
     "immediate attention. If any data source is missing, note it. "
-    "Tone: professional but warm, like a trusted operations manager giving the morning rundown."
+    "Tone: professional but warm, like a trusted operations manager giving the morning rundown. "
+    "Any overdue tasks that were guest-initiated (requested_by is 'Guest') must be called out "
+    "prominently as urgent — these directly affect guest experience and need same-day resolution."
 )
 
 
