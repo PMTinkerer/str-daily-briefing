@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 _VALID_TIERS = {"Luxe", "Mid", "Economy"}
 
-# Breezeway date format: M/DD/YY (e.g. "9/15/25", "8/1/25")
-_DATE_FORMAT = "%m/%d/%y"
+# Breezeway date formats (try in order): M/DD/YY (e.g. "9/15/25") or YYYY-MM-DD
+_DATE_FORMATS = ("%m/%d/%y", "%Y-%m-%d")
 
 
 def parse_breezeway_report(csv_content: str) -> list[dict]:
@@ -116,7 +116,7 @@ def _parse_date(value: str, row_num: int, field: str) -> str:
     """Parse a Breezeway date string into YYYY-MM-DD format.
 
     Args:
-        value: Raw date string (e.g. "9/15/25").
+        value: Raw date string (e.g. "9/15/25" or "2026-03-05").
         row_num: Row number for logging context.
         field: Field name for logging context.
 
@@ -125,11 +125,13 @@ def _parse_date(value: str, row_num: int, field: str) -> str:
     """
     if not value:
         return value
-    try:
-        return datetime.strptime(value, _DATE_FORMAT).strftime("%Y-%m-%d")
-    except ValueError:
-        logger.warning("Row %d: could not parse date for '%s': %r", row_num, field, value)
-        return value
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(value, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    logger.warning("Row %d: could not parse date for '%s': %r", row_num, field, value)
+    return value
 
 
 def _parse_estimated_time(value: str, row_num: int) -> int:

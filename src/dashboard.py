@@ -9,13 +9,15 @@ from __future__ import annotations
 # │   2. HEADER         — Title bar + date                          │
 # │   3. QUALITY BANNER — Warning strip if data sources missing     │
 # │   4. NARRATIVE      — Claude-generated morning briefing text    │
-# │   5. TODAY CARDS    — 6 stat cards (check-ins, turns, etc.)    │
-# │   6. OWNER STAYS    — Next-7-day owner stays table              │
-# │   7. CHARTS         — 4 Chart.js charts (2×2 grid)             │
-# │   8. ROLLING TABLES — 7-day check-ins/turns/inspections tables │
-# │   9. OVERDUE TASKS  — Red-accented overdue task table           │
-# │  10. FOOTER         — Generation timestamp                      │
-# │  11. SCRIPTS        — Chart.js init + IntersectionObserver     │
+# │   5. TODAY CARDS       — 7 stat cards (+ high-priority alert)  │
+# │   6. OWNER STAYS       — Next-7-day owner stays table           │
+# │   7. CHARTS            — 5 Chart.js charts (2×2 + dept bar)    │
+# │   8. ASSIGNEE WORKLOAD — Team task workload next 7 days         │
+# │   9. ROLLING TABLES    — 7-day check-ins/turns/inspections      │
+# │  10. OVERDUE TASKS     — Red-accented overdue task table        │
+# │  11. STALE TASKS       — Orange tasks with no updates 14+ days  │
+# │  12. FOOTER            — Generation timestamp                   │
+# │  13. SCRIPTS           — Chart.js init + IntersectionObserver  │
 # └─────────────────────────────────────────────────────────────────┘
 
 import html
@@ -50,6 +52,7 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
     rev = kpis.get("revenue", {})
     r7 = kpis.get("rolling_7_days", {})
     dq = kpis.get("data_quality", {})
+    ops = kpis.get("operations_detail", {})
 
     report_date_obj = date.fromisoformat(report_date)
     formatted_date = f"{report_date_obj.strftime('%A, %B')} {report_date_obj.day}, {report_date_obj.year}"
@@ -61,6 +64,8 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
     inspections = today_kpis.get("inspections", [])
     owner_stays_today = today_kpis.get("owner_stays", [])
     overdue = today_kpis.get("overdue_tasks", [])
+    hp_overdue = today_kpis.get("high_priority_overdue", [])
+    guest_overdue = today_kpis.get("guest_requests_overdue", [])
     est_hours = today_kpis.get("total_estimated_hours_today", 0.0)
 
     # Sort overdue tasks most-overdue first
@@ -79,14 +84,16 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
         _render_narrative(narrative),
         _render_today_cards(
             checkins, checkouts, turns, yday, overdue, est_hours,
-            inspections, owner_stays_today,
+            inspections, owner_stays_today, hp_overdue, guest_overdue,
         ),
         _render_owner_stays(r7),
         _render_charts_section(rev, yday, today_kpis, dq, r7, report_date),
+        _render_assignee_workload(ops),
         _render_rolling_tables(r7, report_date),
         _render_overdue_table(overdue_sorted, report_date_obj),
+        _render_stale_tasks(ops, report_date),
         _render_footer(generated_at),
-        _render_scripts(rev, yday, today_kpis, dq, r7, report_date),
+        _render_scripts(rev, yday, today_kpis, dq, r7, report_date, ops),
         "</body></html>",
     ]
 
@@ -231,6 +238,8 @@ def _render_today_cards(
     est_hours: float,
     inspections: list,
     owner_stays_today: list,
+    hp_overdue: list,
+    guest_overdue: list,
 ) -> str:
     def _names(items: list, key: str = "listing_name") -> str:
         if not items:
@@ -241,6 +250,11 @@ def _render_today_cards(
 
     turn_modifier = " card--warn" if turns else ""
     overdue_modifier = " card--alert" if overdue else ""
+    hp_modifier = " card--alert" if hp_overdue else ""
+    guest_line = (
+        f'<div class="card-detail"><strong>{len(guest_overdue)} guest request(s) — urgent</strong></div>'
+        if guest_overdue else ""
+    )
 
     new_commission = yday.get("new_commission", 0.0)
     new_count = yday.get("new_reservation_count", 0)
@@ -285,6 +299,12 @@ def _render_today_cards(
       <div class="card-detail">{len(inspections)} inspections · {len(owner_stays_today)} owner stays</div>
     </div>
 
+    <div class="card{hp_modifier}">
+      <div class="card-label">High-Priority Overdue</div>
+      <div class="card-value">{len(hp_overdue)}</div>
+      {guest_line}
+    </div>
+
   </div>
 </section>"""
 
@@ -320,6 +340,39 @@ def _render_charts_section(
       <h3 class="chart-title">Yesterday's Bookings by Platform</h3>
       <canvas id="chartYesterday"></canvas>
     </div>
+    <div class="chart-card chart-card--wide">
+      <h3 class="chart-title">Tasks by Department</h3>
+      <canvas id="chartDept" style="max-height:220px"></canvas>
+    </div>
+  </div>
+</section>"""
+
+
+# ══════════════════════════════════════════════
+# SECTION: Assignee Workload
+# ══════════════════════════════════════════════
+
+def _render_assignee_workload(ops: dict) -> str:
+    """Render a teal-accented table of assignee task counts for the next 7 days."""
+    workload = ops.get("assignee_workload_7_days", {})
+    sorted_assignees = sorted(workload.items(), key=lambda kv: kv[1], reverse=True)
+
+    if sorted_assignees:
+        rows_html = "".join(
+            f'<tr><td class="aw-name">{html.escape(name)}</td>'
+            f'<td class="aw-count">{count}</td></tr>'
+            for name, count in sorted_assignees
+        )
+    else:
+        rows_html = '<tr><td colspan="2" class="aw-empty">No assigned tasks in the next 7 days</td></tr>'
+
+    return f"""<section class="section fade-in">
+  <h2 class="section-title section-title--teal">Team Workload — Next 7 Days</h2>
+  <div class="aw-table-wrap">
+    <table class="aw-table">
+      <thead><tr><th>Assignee</th><th>Tasks Due</th></tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
   </div>
 </section>"""
 
@@ -465,6 +518,46 @@ def _render_overdue_table(overdue_sorted: list, report_date_obj: date) -> str:
 
 
 # ══════════════════════════════════════════════
+# SECTION: Stale Tasks
+# ══════════════════════════════════════════════
+
+def _render_stale_tasks(ops: dict, report_date: str) -> str:
+    """Render an orange-accented table of tasks with no updates in 14+ days.
+
+    Returns empty string if there are no stale tasks.
+    """
+    stale = ops.get("stale_tasks", [])
+    if not stale:
+        return ""
+
+    today_d = date.fromisoformat(report_date)
+    rows_data = sorted(stale, key=lambda t: t.get("last_updated_date", ""))
+
+    rows_html = "".join(
+        f'<tr>'
+        f'<td class="st-prop">{html.escape(t.get("property_name", ""))}</td>'
+        f'<td class="st-task">{html.escape(t.get("task_title", ""))}</td>'
+        f'<td class="st-date">{t.get("last_updated_date", "")}</td>'
+        f'<td class="st-days">{(today_d - date.fromisoformat(t["last_updated_date"])).days}d</td>'
+        f'</tr>'
+        for t in rows_data
+        if t.get("last_updated_date")
+    )
+    if not rows_html:
+        return ""
+
+    return f"""<section class="section fade-in">
+  <h2 class="section-title section-title--warn">⏱ Stale Tasks (No Updates in 14+ Days)</h2>
+  <div class="st-table-wrap">
+    <table class="st-table">
+      <thead><tr><th>Property</th><th>Task</th><th>Last Updated</th><th>Days</th></tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </div>
+</section>"""
+
+
+# ══════════════════════════════════════════════
 # SECTION: Footer
 # ══════════════════════════════════════════════
 
@@ -485,12 +578,14 @@ def _render_scripts(
     dq: dict,
     r7: dict,
     report_date: str,
+    ops: dict,
 ) -> str:
     # Build chart data in Python, inject as JSON
     platform_data = _build_platform_chart_data(rev)
     checkins_data = _build_checkins_chart_data(r7, report_date)
     tasks_data = _build_tasks_chart_data(today_kpis, dq)
     yesterday_data = _build_yesterday_chart_data(yday)
+    dept_data = _build_dept_chart_data(ops)
 
     return f"""<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -499,6 +594,7 @@ const PLATFORM_DATA = {json.dumps(platform_data)};
 const CHECKINS_DATA = {json.dumps(checkins_data)};
 const TASKS_DATA    = {json.dumps(tasks_data)};
 const YESTERDAY_DATA = {json.dumps(yesterday_data)};
+const DEPT_DATA     = {json.dumps(dept_data)};
 
 // ── Chart defaults ──────────────────────────────────────────────
 Chart.defaults.color = '#8892a4';
@@ -587,6 +683,29 @@ new Chart(document.getElementById('chartYesterday'), {{
   }}
 }});
 
+// Tasks by department (horizontal bar)
+new Chart(document.getElementById('chartDept'), {{
+  type: 'bar',
+  data: {{
+    labels: DEPT_DATA.labels,
+    datasets: [{{
+      label: 'Tasks',
+      data: DEPT_DATA.data,
+      backgroundColor: DEPT_DATA.colors,
+      borderRadius: 4,
+    }}]
+  }},
+  options: {{
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {{ legend: {{ display: false }} }},
+    scales: {{
+      x: {{ ticks: {{ stepSize: 1 }}, grid: {{ color: 'rgba(255,255,255,0.05)' }} }},
+      y: {{ grid: {{ display: false }} }},
+    }}
+  }}
+}});
+
 // ── Scroll fade-in ──────────────────────────────────────────────
 const observer = new IntersectionObserver(
   entries => entries.forEach(e => {{ if (e.isIntersecting) e.target.classList.add('visible'); }}),
@@ -660,6 +779,22 @@ def _build_yesterday_chart_data(yday: dict) -> dict:
         "labels": [k for k, _ in sorted_items] or ["None"],
         "data": [v for _, v in sorted_items] or [0],
     }
+
+
+def _build_dept_chart_data(ops: dict) -> dict:
+    """Build tasks-by-department chart data with department-specific colors."""
+    _COLOR_MAP = {
+        "housekeeping":    "#2ba5b5",  # teal
+        "cleaning":        "#2ba5b5",  # teal
+        "maintenance":     "#f39c12",  # orange
+        "inspection":      "#3498db",  # blue
+        "guest experience": "#9b59b6", # purple
+    }
+    dept_totals = ops.get("tasks_by_department_all", {})
+    labels = list(dept_totals.keys())
+    data = [dept_totals[lbl] for lbl in labels]
+    colors = [_COLOR_MAP.get(lbl.lower(), "#8892a4") for lbl in labels]
+    return {"labels": labels, "data": data, "colors": colors}
 
 
 # ══════════════════════════════════════════════
@@ -911,6 +1046,58 @@ body {
 .os-date { color: var(--owner); font-weight: 600; white-space: nowrap; width: 120px; }
 .os-prop { color: var(--text); }
 .os-empty { color: var(--muted); font-style: italic; text-align: center; padding: 1.25rem; }
+
+/* ── chart-card--wide (full-width 5th chart) ── */
+.chart-card--wide { grid-column: 1 / -1; }
+
+/* ── Assignee Workload table ── */
+.section-title--teal { color: var(--teal); }
+.aw-table-wrap {
+  border-left: 4px solid var(--teal);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.aw-table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.aw-table th {
+  background: var(--surface2);
+  color: var(--teal);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .6rem 1rem;
+  text-align: left;
+}
+.aw-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
+.aw-table tbody tr:last-child td { border-bottom: none; }
+.aw-table tbody tr:hover { background: var(--surface2); }
+.aw-name { color: var(--text); font-weight: 600; }
+.aw-count { color: var(--teal); font-weight: 700; text-align: right; }
+.aw-empty { color: var(--muted); font-style: italic; text-align: center; padding: 1.25rem; }
+
+/* ── Stale Tasks table ── */
+.section-title--warn { color: var(--warn); }
+.st-table-wrap {
+  border-left: 4px solid var(--warn);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.st-table { width: 100%; border-collapse: collapse; background: var(--surface); }
+.st-table th {
+  background: var(--warn-dim);
+  color: var(--warn);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .6rem 1rem;
+  text-align: left;
+}
+.st-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
+.st-table tbody tr:last-child td { border-bottom: none; }
+.st-table tbody tr:hover { background: var(--surface2); }
+.st-prop { color: var(--muted); font-size: .85rem; }
+.st-task { color: var(--text); }
+.st-date { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.st-days { color: var(--warn); font-weight: 700; white-space: nowrap; }
 
 /* ── Footer ── */
 .site-footer {
