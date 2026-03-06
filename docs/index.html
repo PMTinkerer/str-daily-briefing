@@ -153,6 +153,7 @@ body {
   gap: 1rem;
 }
 @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+.charts-grid--narrow { grid-template-columns: 1fr; max-width: 400px; }
 
 .chart-card {
   background: var(--surface);
@@ -196,6 +197,15 @@ body {
 .city-cell { font-weight: 500; color: var(--text); }
 .today-col { background: var(--teal-dim) !important; color: var(--teal) !important; font-weight: 600; }
 .total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+
+/* ── Expandable city rows ── */
+.city-row { cursor: pointer; user-select: none; }
+.city-row:hover td { background: var(--surface2); }
+.toggle-arrow { font-size: 0.65rem; margin-right: 0.3rem; display: inline-block; }
+.city-sub-row td { background: var(--surface1); font-size: 0.82rem; color: var(--text-2); }
+.city-sub-row:hover td { background: var(--surface2); }
+.sub-prop { padding-left: 1.6rem !important; color: var(--text-2); font-style: italic; }
+.sub-check { color: var(--teal); font-weight: 600; }
 
 /* ── Overdue table ── */
 .overdue-table th { background: var(--alert-dim); color: var(--alert); }
@@ -307,29 +317,33 @@ body {
   <h2 class="section-title">Morning Briefing</h2>
   <div class="narrative-card">
     <div class="narrative-accent"></div>
-    <div class="narrative-body"><h3>Morning Briefing – Friday, March 6, 2026</h3>
-<p>Good morning! Here&#x27;s what&#x27;s on deck today and what needs your attention:</p>
-<h3>Today&#x27;s Movements</h3>
-<p>We have <strong>one check-in and one checkout</strong> today—no same-day turns to worry about. The Coastal Nest in Scarborough welcomes guests checking in today (4-night stay, manual booking, no commission). The Curator&#x27;s Retreat in Kennebunk checks out this morning after a 17-night Airbnb stay that brought in $411 in commission.</p>
-<h3>Critical: Guest Requests Requiring Immediate Action</h3>
-<p>We have <strong>20 overdue guest-requested tasks</strong> that directly impact guest experience and need same-day resolution. These include multiple critical issues from November and December that are still unresolved:</p>
+    <div class="narrative-body"><h3>Morning Briefing - Friday, March 6, 2026</h3>
+<p>Good morning,</p>
+<h3>Today&#x27;s Activity</h3>
+<p><strong>Check-ins (1):</strong> The Coastal Nest in Scarborough welcomes guests for a 4-night stay through Tuesday, March 10. This was a manual booking from early January.</p>
+<p><strong>Checkouts (1):</strong> The Curator&#x27;s Retreat in Kennebunk checks out today after a 17-night stay. This Airbnb booking generated $411.40 in commission.</p>
+<p><strong>No same-day turns</strong> — we&#x27;re catching a break today.</p>
+<h3>Critical: Guest Requests Overdue</h3>
+<p>We have <strong>20 guest-initiated tasks still overdue</strong>, some dating back months. These directly impact guest satisfaction and need immediate attention:</p>
 <ul>
-<li><strong>Bayview Beach Cottage</strong> (353 Seaside Ave): Heat not working, smoke detector chirping, and inquiry about visiting guest (all from November guest Andrea Jeslis—overdue since Nov 18-20)</li>
-<li><strong>Bayview Beach House</strong> (353 Seaside Ave): Toilet leak, propane tank concern, furnace FYI, and walkway feedback (guests Julie Audia and Michael Cormier—overdue since late November/December)</li>
-<li><strong>Maple Shadow Farm</strong> (1047 Littlefield Rd): Broken bed leg and wonky door knobs (guest Abby Mayou—overdue since Dec 15, assigned to Christopher Freddette)</li>
-<li><strong>Ocean Ridge</strong> (441 Ridge Road): Early check-in request, broken table tennis paddle, and request to put away breakable decorations (various guests—oldest from Nov 26)</li>
-<li><strong>Ocean Sunrise</strong> (3 Odena Ave): WiFi not working (guest Jeffrey Thomson—overdue since Nov 26)</li>
-<li><strong>Town &amp; Tide</strong> (100 Ocean Ave): Continuously running toilet (guest Mary Rosselli—overdue since Feb 15)</li>
-<li><strong>The Curator&#x27;s Retreat</strong> (49 Brown St): Oven smoke issue (guest Eliza Currie—overdue since Feb 16)</li>
+<li><strong>Bayview Beach Cottage:</strong> 3 critical issues from November (visiting guest inquiry, smoke detector chirping, heat not working) plus a December date change request</li>
+<li><strong>Ocean Ridge:</strong> Early check-in request (Nov 26), broken table tennis paddle (Feb 22), breakable decorations concern (Feb 23)</li>
+<li><strong>Ocean Sunrise:</strong> WiFi issue from November 26</li>
+<li><strong>Bayview Beach House:</strong> Toilet leak, propane safety concern, furnace heads-up, and walkway feedback (all from late Nov/Dec)</li>
+<li><strong>Maple Shadow Farm:</strong> Broken bed leg, wonky doorknobs (Dec), and takeout inquiry (Feb 13)</li>
+<li><strong>Shore Bliss:</strong> Late checkout request (Dec 14), LCO request (Nov 28)</li>
+<li><strong>Town &amp; Tide:</strong> Running toilet (Feb 15)</li>
+<li><strong>The Curator&#x27;s Retreat:</strong> Oven smoke issue (Feb 16)</li>
+<li><strong>Crescent&#x27;s Pearl:</strong> Early check-in request (Feb 12)</li>
 </ul>
-<p>These guest issues are now weeks to months overdue and need immediate escalation and resolution today.</p>
-<h3>Booking Activity</h3>
-<p>Yesterday brought <strong>one new Airbnb reservation worth $4,405 in commission</strong>—excellent to see the bookings picking up as we head into spring. Year-to-date we&#x27;re at $195,832 in total commission with $2,009 booked so far this month.</p>
-<h3>Week Ahead (March 7-12)</h3>
-<p>Very quiet on the calendar: just one check-in on Wednesday, March 11 in Kennebunkport. One inspection scheduled for Tuesday, March 10. No same-day turns through the week. We also have three recurring tasks scheduled: trash service for Town &amp; Tide (Monday, 3/8) and The Curator&#x27;s Retreat (Wednesday, 3/10), plus hottub service for Crescent&#x27;s Pearl (Monday, 3/9).</p>
-<h3>Operational Concerns</h3>
-<p>Beyond the urgent guest requests, we&#x27;re carrying <strong>32 overdue tasks total</strong>, including recurring monthly safety inspections for Shore Bliss and Ocean Sunrise that have been overdue since November/December. We also have <strong>24 stale tasks</strong> (in &quot;Created&quot; status with no due dates) spanning maintenance issues like broken lamps, mouse droppings, dead bulbs, and leaking windows—these need to be triaged, assigned, and scheduled. The Curator&#x27;s Retreat has an overdue trash task from Feb 24 (assigned to Donica Wiesner).</p>
-<p><strong>Bottom line:</strong> The guest-requested maintenance issues are the top priority today—some are approaching 4 months overdue. Let&#x27;s get Christopher Freddette and the maintenance team focused on clearing the backlog at Bayview properties and Maple Shadow Farm immediately.</p></div>
+<p>These tasks have been sitting for weeks to months. Any currently occupied properties need same-day resolution.</p>
+<h3>Operational Backlog</h3>
+<p>Beyond guest requests, we&#x27;re carrying <strong>32 total overdue tasks</strong>, including monthly safety inspections for Shore Bliss and Ocean Sunrise that haven&#x27;t been completed since they were due in November and December. We also have <strong>24 stale tasks</strong> (items created but never scheduled) spanning broken items, maintenance needs, and inventory replenishment across multiple properties.</p>
+<h3>Yesterday&#x27;s Booking Activity</h3>
+<p>One new Airbnb reservation came in yesterday generating $4,404.98 in commission — strong booking activity heading into the weekend.</p>
+<h3>Week Ahead</h3>
+<p>Light activity through the weekend with one check-in on Wednesday, March 11 (Town &amp; Tide in Kennebunkport). An inspection is scheduled for Tuesday, March 10, but the property isn&#x27;t specified in the system. Several routine maintenance tasks are queued (trash service, hot tub maintenance at Crescent&#x27;s Pearl).</p>
+<p><strong>Bottom line:</strong> The guest request backlog is the priority today. Every overdue guest issue is a potential review problem. Let&#x27;s get these cleared before the weekend.</p></div>
   </div>
 </section>
 <section class="section fade-in">
@@ -381,6 +395,35 @@ body {
   </div>
 </section>
 <section class="section fade-in">
+  <h2 class="section-title">Rolling 7-Day Outlook</h2>
+  <h3 class="table-subtitle">Check-ins by City</h3>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>City</th><th class="today-col">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th><th class="">Wed 3/11</th><th class="">Thu 3/12</th></tr></thead>
+  <tbody><tr class="city-row" data-group="ci-0" onclick="toggleCity('ci-0')"><td class="city-cell"><span class="toggle-arrow">▶</span>Kennebunkport</td><td class="today-col">—</td><td class="">—</td><td class="">—</td><td class="">—</td><td class="">—</td><td class="">1</td><td class="">—</td></tr><tr class="city-sub-row" id="ci-0-0" style="display:none"><td class="sub-prop">↳ Town &amp; Tide</td><td class="today-col sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">✓</td><td class=" sub-check">—</td></tr><tr class="city-row" data-group="ci-1" onclick="toggleCity('ci-1')"><td class="city-cell"><span class="toggle-arrow">▶</span>Scarborough</td><td class="today-col">1</td><td class="">—</td><td class="">—</td><td class="">—</td><td class="">—</td><td class="">—</td><td class="">—</td></tr><tr class="city-sub-row" id="ci-1-0" style="display:none"><td class="sub-prop">↳ The Coastal Nest</td><td class="today-col sub-check">✓</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td><td class=" sub-check">—</td></tr><tr class="total-row"><td>Total</td><td class="today-col">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td></tr></tbody>
+</table>
+</div>
+  <div class="table-spacer"></div>
+  <h3 class='table-subtitle'>Same-Day Turns by City</h3><p class='empty'>No data</p>
+  <div class="table-spacer"></div>
+  <h3 class="table-subtitle">Arrival Inspections by City</h3>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>City</th><th class="today-col">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th><th class="">Wed 3/11</th><th class="">Thu 3/12</th></tr></thead>
+  <tbody><tr><td class='city-cell'></td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td><td class="">0</td></tr><tr class="total-row"><td>Total</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td><td class="">0</td></tr></tbody>
+</table>
+</div>
+</section>
+<section class="section fade-in">
+  <h2 class="section-title section-title--teal">Team Workload — Next 7 Days</h2>
+  <div class="aw-table-wrap">
+    <table class="aw-table">
+      <thead><tr><th>Assignee</th><th>Tasks Due</th></tr></thead>
+      <tbody><tr><td class="aw-name">Maria Sanjur</td><td class="aw-count">1</td></tr><tr><td class="aw-name">Brianna Robinson</td><td class="aw-count">1</td></tr><tr><td class="aw-name">Donica Wiesner</td><td class="aw-count">1</td></tr></tbody>
+    </table>
+  </div>
+</section>
+<section class="section fade-in">
   <h2 class="section-title section-title--owner">Owner Stays — Next 7 Days</h2>
   <div class="owner-table-wrap">
     <table class="owner-table">
@@ -400,54 +443,11 @@ body {
       <h3 class="chart-title">7-Day Check-ins by City</h3>
       <canvas id="chartCheckins"></canvas>
     </div>
-    <div class="chart-card">
-      <h3 class="chart-title">Tasks Overview</h3>
-      <canvas id="chartTasks"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3 class="chart-title">Yesterday's Bookings by Platform</h3>
-      <canvas id="chartYesterday"></canvas>
-    </div>
     <div class="chart-card chart-card--wide">
       <h3 class="chart-title">Tasks by Department</h3>
       <canvas id="chartDept" style="max-height:220px"></canvas>
     </div>
   </div>
-</section>
-<section class="section fade-in">
-  <h2 class="section-title section-title--teal">Team Workload — Next 7 Days</h2>
-  <div class="aw-table-wrap">
-    <table class="aw-table">
-      <thead><tr><th>Assignee</th><th>Tasks Due</th></tr></thead>
-      <tbody><tr><td class="aw-name">Maria Sanjur</td><td class="aw-count">1</td></tr><tr><td class="aw-name">Brianna Robinson</td><td class="aw-count">1</td></tr><tr><td class="aw-name">Donica Wiesner</td><td class="aw-count">1</td></tr></tbody>
-    </table>
-  </div>
-</section>
-<section class="section fade-in">
-  <h2 class="section-title">Rolling 7-Day Outlook</h2>
-  <h3 class="table-subtitle">Check-ins by City</h3>
-<div class="table-wrap">
-<table class="data-table">
-  <thead><tr><th>City</th><th class="today-col">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th><th class="">Wed 3/11</th><th class="">Thu 3/12</th></tr></thead>
-  <tbody>
-    <tr><td class='city-cell'>Kennebunkport</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td></tr><tr><td class='city-cell'>Scarborough</td><td class="today-col">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td></tr>
-    <tr class="total-row"><td>Total</td><td class="today-col">1</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td></tr>
-  </tbody>
-</table>
-</div>
-  <div class="table-spacer"></div>
-  <h3 class='table-subtitle'>Same-Day Turns by City</h3><p class='empty'>No data</p>
-  <div class="table-spacer"></div>
-  <h3 class="table-subtitle">Arrival Inspections by City</h3>
-<div class="table-wrap">
-<table class="data-table">
-  <thead><tr><th>City</th><th class="today-col">Fri 3/6</th><th class="">Sat 3/7</th><th class="">Sun 3/8</th><th class="">Mon 3/9</th><th class="">Tue 3/10</th><th class="">Wed 3/11</th><th class="">Thu 3/12</th></tr></thead>
-  <tbody>
-    <tr><td class='city-cell'></td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td><td class="">0</td></tr>
-    <tr class="total-row"><td>Total</td><td class="today-col">0</td><td class="">0</td><td class="">0</td><td class="">0</td><td class="">1</td><td class="">0</td><td class="">0</td></tr>
-  </tbody>
-</table>
-</div>
 </section>
 <section class="section fade-in">
   <h2 class="section-title section-title--alert">⚠ Overdue Tasks</h2>
@@ -659,6 +659,14 @@ body {
   </div>
 </section>
 <section class="section fade-in">
+  <h2 class="section-title">Tasks Overview</h2>
+  <div class="charts-grid charts-grid--narrow">
+    <div class="chart-card">
+      <canvas id="chartTasks"></canvas>
+    </div>
+  </div>
+</section>
+<section class="section fade-in">
   <h2 class="section-title section-title--warn">⏱ Stale Tasks (No Updates in 14+ Days)</h2>
   <div class="st-table-wrap">
     <table class="st-table">
@@ -668,7 +676,7 @@ body {
   </div>
 </section>
 <footer class="site-footer">
-  <p>Generated by <strong>STR Daily Briefing</strong> · 2026-03-06 11:18 · Powered by Claude AI</p>
+  <p>Generated by <strong>STR Daily Briefing</strong> · 2026-03-06 13:37 · Powered by Claude AI</p>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -676,7 +684,6 @@ body {
 const PLATFORM_DATA = {"labels": ["HomeAway", "Airbnb", "Booking.com", "Manual", "vacayHome"], "data": [105858.5, 70666.44, 10938.92, 7931.23, 437.34]};
 const CHECKINS_DATA = {"labels": ["Fri 3/6", "Sat 3/7", "Sun 3/8", "Mon 3/9", "Tue 3/10", "Wed 3/11", "Thu 3/12"], "datasets": [{"label": "Kennebunkport", "data": [0, 0, 0, 0, 0, 1, 0], "backgroundColor": "#2ba5b5", "borderRadius": 2}, {"label": "Scarborough", "data": [1, 0, 0, 0, 0, 0, 0], "backgroundColor": "#e67e22", "borderRadius": 2}]};
 const TASKS_DATA    = {"labels": ["Overdue", "Other"], "data": [32, 102], "colors": ["#e74c3c", "#4a5568"]};
-const YESTERDAY_DATA = {"labels": ["Airbnb"], "data": [1]};
 const DEPT_DATA     = {"labels": ["Maintenance", "Inspection", "Cleaning"], "data": [74, 27, 33], "colors": ["#f39c12", "#3498db", "#2ba5b5"]};
 
 // ── Chart defaults ──────────────────────────────────────────────
@@ -744,28 +751,6 @@ new Chart(document.getElementById('chartTasks'), {
   }
 });
 
-// Yesterday's bookings by platform (bar)
-new Chart(document.getElementById('chartYesterday'), {
-  type: 'bar',
-  data: {
-    labels: YESTERDAY_DATA.labels,
-    datasets: [{
-      label: 'Reservations',
-      data: YESTERDAY_DATA.data,
-      backgroundColor: TEAL,
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { grid: { display: false } },
-      y: { ticks: { stepSize: 1 } },
-    }
-  }
-});
-
 // Tasks by department (horizontal bar)
 new Chart(document.getElementById('chartDept'), {
   type: 'bar',
@@ -788,6 +773,16 @@ new Chart(document.getElementById('chartDept'), {
     }
   }
 });
+
+// ── Expandable city rows ─────────────────────────────────────────
+function toggleCity(groupId) {
+  const subRows = document.querySelectorAll('[id^="' + groupId + '-"]');
+  const cityRow = document.querySelector('[data-group="' + groupId + '"]');
+  const arrow = cityRow && cityRow.querySelector('.toggle-arrow');
+  const isHidden = subRows.length > 0 && subRows[0].style.display === 'none';
+  subRows.forEach(r => r.style.display = isHidden ? '' : 'none');
+  if (arrow) arrow.textContent = isHidden ? '▼ ' : '▶ ';
+}
 
 // ── Scroll fade-in ──────────────────────────────────────────────
 const observer = new IntersectionObserver(

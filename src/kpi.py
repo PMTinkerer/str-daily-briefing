@@ -168,9 +168,15 @@ def _compute_rolling_7_days(
     owner_stays_by_day: dict[str, list[str]] = {}
 
     for day in next_7:
-        # Checkins by city
+        # Checkins by city (with property names for expandable table)
         day_checkins = [r for r in reservations if r["check_in"] == day]
-        checkins_by_city[day] = dict(Counter(r["city"] for r in day_checkins))
+        city_groups: dict[str, list[str]] = {}
+        for r in day_checkins:
+            city_groups.setdefault(r["city"], []).append(r["listing_name"])
+        checkins_by_city[day] = {
+            city: {"count": len(props), "properties": sorted(props)}
+            for city, props in city_groups.items()
+        }
 
         # Same-day turns by city
         day_checkouts = [r for r in reservations if r["check_out"] == day]

@@ -86,11 +86,12 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
             checkins, checkouts, turns, yday, overdue, est_hours,
             inspections, owner_stays_today, hp_overdue, guest_overdue,
         ),
+        _render_rolling_tables(r7, report_date),
+        _render_assignee_workload(ops),
         _render_owner_stays(r7),
         _render_charts_section(rev, yday, today_kpis, dq, r7, report_date),
-        _render_assignee_workload(ops),
-        _render_rolling_tables(r7, report_date),
         _render_overdue_table(overdue_sorted, report_date_obj),
+        _render_tasks_pie(today_kpis, report_date),
         _render_stale_tasks(ops, report_date),
         _render_footer(generated_at),
         _render_scripts(rev, yday, today_kpis, dq, r7, report_date, ops),
@@ -332,14 +333,6 @@ def _render_charts_section(
       <h3 class="chart-title">7-Day Check-ins by City</h3>
       <canvas id="chartCheckins"></canvas>
     </div>
-    <div class="chart-card">
-      <h3 class="chart-title">Tasks Overview</h3>
-      <canvas id="chartTasks"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3 class="chart-title">Yesterday's Bookings by Platform</h3>
-      <canvas id="chartYesterday"></canvas>
-    </div>
     <div class="chart-card chart-card--wide">
       <h3 class="chart-title">Tasks by Department</h3>
       <canvas id="chartDept" style="max-height:220px"></canvas>
@@ -390,52 +383,94 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
     if not dates:
         return ""
 
-    def _table(by_city: dict, title: str) -> str:
-        all_cities = sorted({
-            city
-            for day_data in by_city.values()
-            for city in day_data
-        })
+    def _plain_table(by_city: dict, title: str) -> str:
+        """Render a simple city × date count table (turns, inspections)."""
+        all_cities = sorted({city for day_data in by_city.values() for city in day_data})
         if not all_cities:
             return f"<h3 class='table-subtitle'>{html.escape(title)}</h3><p class='empty'>No data</p>"
-
         header_cells = "".join(
-            f'<th class="{"today-col" if d == report_date else ""}">'
-            f'{_fmt_short_date(d)}</th>'
+            f'<th class="{"today-col" if d == report_date else ""}">{_fmt_short_date(d)}</th>'
             for d in dates
         )
         total_row = "".join(
-            f'<td class="{"today-col" if d == report_date else ""}">'
-            f'{sum(by_city.get(d, {}).values())}</td>'
+            f'<td class="{"today-col" if d == report_date else ""}">{sum(by_city.get(d, {}).values())}</td>'
             for d in dates
         )
         city_rows = ""
         for city in all_cities:
             cells = "".join(
-                f'<td class="{"today-col" if d == report_date else ""}">'
-                f'{by_city.get(d, {}).get(city, 0)}</td>'
+                f'<td class="{"today-col" if d == report_date else ""}">{by_city.get(d, {}).get(city, 0)}</td>'
                 for d in dates
             )
             city_rows += f"<tr><td class='city-cell'>{html.escape(city)}</td>{cells}</tr>"
-
         return f"""<h3 class="table-subtitle">{html.escape(title)}</h3>
 <div class="table-wrap">
 <table class="data-table">
   <thead><tr><th>City</th>{header_cells}</tr></thead>
-  <tbody>
-    {city_rows}
-    <tr class="total-row"><td>Total</td>{total_row}</tr>
-  </tbody>
+  <tbody>{city_rows}<tr class="total-row"><td>Total</td>{total_row}</tr></tbody>
+</table>
+</div>"""
+
+    def _expandable_checkins_table(by_city: dict, title: str) -> str:
+        """Render the check-ins table with expandable city rows showing property names."""
+        all_cities = sorted({city for day_data in by_city.values() for city in day_data})
+        if not all_cities:
+            return f"<h3 class='table-subtitle'>{html.escape(title)}</h3><p class='empty'>No data</p>"
+        header_cells = "".join(
+            f'<th class="{"today-col" if d == report_date else ""}">{_fmt_short_date(d)}</th>'
+            for d in dates
+        )
+        total_row = "".join(
+            f'<td class="{"today-col" if d == report_date else ""}">'
+            f'{sum(v["count"] for v in by_city.get(d, {}).values())}</td>'
+            for d in dates
+        )
+        city_rows = ""
+        for city_idx, city in enumerate(all_cities):
+            group_id = f"ci-{city_idx}"
+            count_cells = "".join(
+                f'<td class="{"today-col" if d == report_date else ""}">'
+                f'{by_city.get(d, {}).get(city, {}).get("count", 0) or "—"}</td>'
+                for d in dates
+            )
+            city_rows += (
+                f'<tr class="city-row" data-group="{group_id}" '
+                f'onclick="toggleCity(\'{group_id}\')">'
+                f'<td class="city-cell">'
+                f'<span class="toggle-arrow">▶</span>{html.escape(city)}'
+                f'</td>{count_cells}</tr>'
+            )
+            # Collect all properties for this city across all days
+            all_props = sorted({
+                prop
+                for day_data in by_city.values()
+                for prop in day_data.get(city, {}).get("properties", [])
+            })
+            for prop_idx, prop in enumerate(all_props):
+                prop_cells = "".join(
+                    f'<td class="{"today-col" if d == report_date else ""} sub-check">'
+                    f'{"✓" if prop in by_city.get(d, {}).get(city, {}).get("properties", []) else "—"}</td>'
+                    for d in dates
+                )
+                city_rows += (
+                    f'<tr class="city-sub-row" id="{group_id}-{prop_idx}" style="display:none">'
+                    f'<td class="sub-prop">↳ {html.escape(prop)}</td>{prop_cells}</tr>'
+                )
+        return f"""<h3 class="table-subtitle">{html.escape(title)}</h3>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>City</th>{header_cells}</tr></thead>
+  <tbody>{city_rows}<tr class="total-row"><td>Total</td>{total_row}</tr></tbody>
 </table>
 </div>"""
 
     return f"""<section class="section fade-in">
   <h2 class="section-title">Rolling 7-Day Outlook</h2>
-  {_table(checkins_by_city, "Check-ins by City")}
+  {_expandable_checkins_table(checkins_by_city, "Check-ins by City")}
   <div class="table-spacer"></div>
-  {_table(turns_by_city, "Same-Day Turns by City")}
+  {_plain_table(turns_by_city, "Same-Day Turns by City")}
   <div class="table-spacer"></div>
-  {_table(inspections_by_city, "Arrival Inspections by City")}
+  {_plain_table(inspections_by_city, "Arrival Inspections by City")}
 </section>"""
 
 
@@ -518,6 +553,22 @@ def _render_overdue_table(overdue_sorted: list, report_date_obj: date) -> str:
 
 
 # ══════════════════════════════════════════════
+# SECTION: Tasks Pie (standalone, near task tables)
+# ══════════════════════════════════════════════
+
+def _render_tasks_pie(today_kpis: dict, report_date: str) -> str:
+    """Render the Tasks Overview doughnut chart as a standalone section."""
+    return """<section class="section fade-in">
+  <h2 class="section-title">Tasks Overview</h2>
+  <div class="charts-grid charts-grid--narrow">
+    <div class="chart-card">
+      <canvas id="chartTasks"></canvas>
+    </div>
+  </div>
+</section>"""
+
+
+# ══════════════════════════════════════════════
 # SECTION: Stale Tasks
 # ══════════════════════════════════════════════
 
@@ -584,7 +635,6 @@ def _render_scripts(
     platform_data = _build_platform_chart_data(rev)
     checkins_data = _build_checkins_chart_data(r7, report_date)
     tasks_data = _build_tasks_chart_data(today_kpis, dq)
-    yesterday_data = _build_yesterday_chart_data(yday)
     dept_data = _build_dept_chart_data(ops)
 
     return f"""<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -593,7 +643,6 @@ def _render_scripts(
 const PLATFORM_DATA = {json.dumps(platform_data)};
 const CHECKINS_DATA = {json.dumps(checkins_data)};
 const TASKS_DATA    = {json.dumps(tasks_data)};
-const YESTERDAY_DATA = {json.dumps(yesterday_data)};
 const DEPT_DATA     = {json.dumps(dept_data)};
 
 // ── Chart defaults ──────────────────────────────────────────────
@@ -661,28 +710,6 @@ new Chart(document.getElementById('chartTasks'), {{
   }}
 }});
 
-// Yesterday's bookings by platform (bar)
-new Chart(document.getElementById('chartYesterday'), {{
-  type: 'bar',
-  data: {{
-    labels: YESTERDAY_DATA.labels,
-    datasets: [{{
-      label: 'Reservations',
-      data: YESTERDAY_DATA.data,
-      backgroundColor: TEAL,
-      borderRadius: 4,
-    }}]
-  }},
-  options: {{
-    responsive: true,
-    plugins: {{ legend: {{ display: false }} }},
-    scales: {{
-      x: {{ grid: {{ display: false }} }},
-      y: {{ ticks: {{ stepSize: 1 }} }},
-    }}
-  }}
-}});
-
 // Tasks by department (horizontal bar)
 new Chart(document.getElementById('chartDept'), {{
   type: 'bar',
@@ -705,6 +732,16 @@ new Chart(document.getElementById('chartDept'), {{
     }}
   }}
 }});
+
+// ── Expandable city rows ─────────────────────────────────────────
+function toggleCity(groupId) {{
+  const subRows = document.querySelectorAll('[id^="' + groupId + '-"]');
+  const cityRow = document.querySelector('[data-group="' + groupId + '"]');
+  const arrow = cityRow && cityRow.querySelector('.toggle-arrow');
+  const isHidden = subRows.length > 0 && subRows[0].style.display === 'none';
+  subRows.forEach(r => r.style.display = isHidden ? '' : 'none');
+  if (arrow) arrow.textContent = isHidden ? '▼ ' : '▶ ';
+}}
 
 // ── Scroll fade-in ──────────────────────────────────────────────
 const observer = new IntersectionObserver(
@@ -740,7 +777,7 @@ def _build_checkins_chart_data(r7: dict, report_date: str) -> dict:
         color = _CITY_COLORS[i % len(_CITY_COLORS)]
         datasets.append({
             "label": city,
-            "data": [checkins_by_city.get(d, {}).get(city, 0) for d in dates],
+            "data": [checkins_by_city.get(d, {}).get(city, {}).get("count", 0) for d in dates],
             "backgroundColor": color,
             "borderRadius": 2,
         })
@@ -970,6 +1007,7 @@ body {
   gap: 1rem;
 }
 @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+.charts-grid--narrow { grid-template-columns: 1fr; max-width: 400px; }
 
 .chart-card {
   background: var(--surface);
@@ -1013,6 +1051,15 @@ body {
 .city-cell { font-weight: 500; color: var(--text); }
 .today-col { background: var(--teal-dim) !important; color: var(--teal) !important; font-weight: 600; }
 .total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+
+/* ── Expandable city rows ── */
+.city-row { cursor: pointer; user-select: none; }
+.city-row:hover td { background: var(--surface2); }
+.toggle-arrow { font-size: 0.65rem; margin-right: 0.3rem; display: inline-block; }
+.city-sub-row td { background: var(--surface1); font-size: 0.82rem; color: var(--text-2); }
+.city-sub-row:hover td { background: var(--surface2); }
+.sub-prop { padding-left: 1.6rem !important; color: var(--text-2); font-style: italic; }
+.sub-check { color: var(--teal); font-weight: 600; }
 
 /* ── Overdue table ── */
 .overdue-table th { background: var(--alert-dim); color: var(--alert); }
