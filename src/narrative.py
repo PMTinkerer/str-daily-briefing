@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import date, timedelta
 
 import anthropic
 from dotenv import load_dotenv
@@ -26,7 +27,10 @@ SYSTEM_PROMPT = (
     "immediate attention. If any data source is missing, note it. "
     "Tone: professional but warm, like a trusted operations manager giving the morning rundown. "
     "Any overdue tasks that were guest-initiated (requested_by is 'Guest') must be called out "
-    "prominently as urgent — these directly affect guest experience and need same-day resolution."
+    "prominently as urgent — these directly affect guest experience and need same-day resolution. "
+    "When referring to dates, always use the actual date (e.g., 'Thursday, March 6') rather than "
+    "relative terms like 'tomorrow' unless the event is literally on tomorrow's date. "
+    "The report_date in the data is today's date."
 )
 
 
@@ -46,7 +50,13 @@ def generate_narrative(kpis: dict, report_date: str) -> str:
         logger.warning("ANTHROPIC_API_KEY not set; returning fallback narrative")
         return _fallback_narrative(kpis, report_date)
 
+    report_day = date.fromisoformat(report_date)
+    tomorrow = report_day + timedelta(days=1)
+    day_of_week = report_day.strftime("%A")
+    tomorrow_str = tomorrow.strftime("%Y-%m-%d")
+
     user_message = (
+        f"Today is {report_date} ({day_of_week}). Tomorrow is {tomorrow_str}.\n\n"
         f"Report date: {report_date}\n\n"
         f"KPIs:\n{json.dumps(kpis, indent=2, default=str)}"
     )
