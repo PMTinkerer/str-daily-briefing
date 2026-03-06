@@ -28,6 +28,10 @@ EXPECTED_KEYS = {
     "creation_date",
     "platform",
     "commission",
+    "total_payout",
+    "accommodation_fare",
+    "source",
+    "channel_reservation_id",
 }
 
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

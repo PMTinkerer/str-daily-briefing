@@ -15,10 +15,15 @@ _COLUMN_MAP = {
     "CHECK-IN": "check_in",
     "CHECK-OUT": "check_out",
     "LISTING": "listing",
+    "LISTING'S NICKNAME": "listing_nickname",
     "LISTING'S CITY": "city",
     "CREATION DATE": "creation_date",
     "PLATFORM": "platform",
     "COMMISSION": "commission",
+    "TOTAL PAYOUT": "total_payout",
+    "ACCOMMODATION FARE": "accommodation_fare",
+    "SOURCE": "source",
+    "CHANNEL RESERVATION ID": "channel_reservation_id",
 }
 
 _REQUIRED_KEYS = {"check_in", "check_out", "listing", "city", "creation_date", "platform", "commission"}
@@ -103,7 +108,11 @@ def _parse_row(cells: list[str], col_index: dict[str, int], row_num: int) -> dic
         return cells[idx]
 
     listing_full = get("listing")
-    listing_name = listing_full.split(" / ")[0].strip() if " / " in listing_full else listing_full
+    # Prefer explicit nickname column; fall back to parsing listing_full
+    nickname = get("listing_nickname").strip()
+    listing_name = nickname if nickname else (
+        listing_full.split(" / ")[0].strip() if " / " in listing_full else listing_full
+    )
 
     return {
         "check_in": _parse_date(get("check_in"), row_num, "check_in"),
@@ -114,6 +123,10 @@ def _parse_row(cells: list[str], col_index: dict[str, int], row_num: int) -> dic
         "creation_date": _parse_date(get("creation_date"), row_num, "creation_date"),
         "platform": get("platform"),
         "commission": _parse_commission(get("commission"), row_num),
+        "total_payout": _parse_commission(get("total_payout"), row_num),
+        "accommodation_fare": _parse_commission(get("accommodation_fare"), row_num),
+        "source": get("source"),
+        "channel_reservation_id": get("channel_reservation_id"),
     }
 
 
