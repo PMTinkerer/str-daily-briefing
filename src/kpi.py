@@ -8,6 +8,8 @@ from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
+_OVERDUE_DEPARTMENTS = {"Maintenance", "Inspection"}
+
 
 def compute_kpis(
     guesty_reservations: list[dict],
@@ -76,8 +78,9 @@ def _compute_today(
     owner_stays = [t for t in tasks_due_today if "Owner Stay" in t["task_title"]]
     overdue_tasks = [
         t for t in tasks
-        if t["status"] == "Overdue"
-        or (t["due_date"] and t["due_date"] < today)
+        if (t["status"] == "Overdue"
+            or (t["due_date"] and t["due_date"] < today))
+        and t.get("department", "") in _OVERDUE_DEPARTMENTS
     ]
     high_priority_overdue = [
         t for t in overdue_tasks
@@ -231,6 +234,7 @@ def _compute_operations_detail(tasks: list[dict], next_7: list[str], today: str)
     stale = [
         t for t in tasks
         if t.get("last_updated_date") and t["last_updated_date"] < stale_cutoff
+        and t.get("department", "") in _OVERDUE_DEPARTMENTS
     ]
 
     return {

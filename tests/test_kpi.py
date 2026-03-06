@@ -90,8 +90,9 @@ def tasks() -> list[dict]:
         _make_task(TEST_DATE, "Arrival Inspection - M (w/ Inventory)", "Created", 45, "York", "Sea Cottage"),
         # T3: owner stay today — should NOT appear in inspections
         _make_task(TEST_DATE, "Owner Stay Setup", "Created", 30, "York", "Sea Cottage"),
-        # T4: overdue (due yesterday, status=Overdue)
-        _make_task(YESTERDAY, "Cleaning", "Overdue", 120, "Kennebunk", "Farm Stay"),
+        # T4: overdue cleaning — excluded by department filter (Cleaning dept)
+        _make_task(YESTERDAY, "Cleaning", "Overdue", 120, "Kennebunk", "Farm Stay",
+                   department="Cleaning"),
         # T5: future inspection
         _make_task("2026-03-05", "Arrival Inspection - E", "Created", 30, "Ogunquit", "Hideaway"),
         # T6: high-priority overdue (Maintenance)
@@ -99,7 +100,7 @@ def tasks() -> list[dict]:
                    department="Maintenance", priority="High"),
         # T7: guest-initiated overdue, stale (last updated 32 days before TEST_DATE)
         _make_task(YESTERDAY, "Guest Request - Extra Towels", "Overdue", 15, "Ogunquit", "Beach House",
-                   department="Guest Experience", priority="High", requested_by="Guest",
+                   department="Maintenance", priority="High", requested_by="Guest",
                    last_updated_date="2026-02-01"),
         # T8: future task with assignee (in next-7-day window from TEST_DATE=2026-03-04)
         _make_task("2026-03-06", "Pool Inspection - L", "Created", 45, "York", "Sea Cottage",
@@ -137,7 +138,11 @@ def test_yesterday_bookings(kpis: dict) -> None:
 def test_overdue_tasks(kpis: dict) -> None:
     overdue = kpis["today"]["overdue_tasks"]
     titles = [t["task_title"] for t in overdue]
-    assert "Cleaning" in titles  # T4 is overdue (status=Overdue AND due < today)
+    # Cleaning tasks are excluded by department filter
+    assert "Cleaning" not in titles
+    # Maintenance and Inspection tasks are included
+    assert "HVAC Repair" in titles
+    assert "Guest Request - Extra Towels" in titles
 
 
 def test_owner_stays_excluded_from_inspections(kpis: dict) -> None:
