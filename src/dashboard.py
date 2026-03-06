@@ -88,7 +88,7 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
         ),
         _render_rolling_tables(r7, report_date),
         _render_assignee_workload(ops),
-        _render_owner_stays(r7),
+        _render_owner_stays(kpis.get("owner_stays_upcoming", [])),
         _render_charts_section(rev, yday, today_kpis, dq, r7, report_date),
         _render_overdue_table(overdue_sorted, report_date_obj),
         _render_tasks_pie(today_kpis, report_date),
@@ -478,30 +478,33 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
 # SECTION: Owner Stays — Next 7 Days
 # ══════════════════════════════════════════════
 
-def _render_owner_stays(r7: dict) -> str:
-    owner_stays_by_day = r7.get("owner_stays_by_day", {})
+def _render_owner_stays(owner_stays: list[dict]) -> str:
+    """Render upcoming owner and owner-guest stays from Guesty data (30-day horizon)."""
+    _TYPE_LABEL = {"owner": "Owner", "owner-guest": "Owner Guest"}
 
-    # Flatten dict[date, list[property]] → sorted list of (date, property) tuples
-    rows_data: list[tuple[str, str]] = [
-        (day, prop)
-        for day in sorted(owner_stays_by_day.keys())
-        for prop in owner_stays_by_day[day]
-    ]
-
-    if rows_data:
-        rows_html = "".join(
-            f'<tr><td class="os-date">{_fmt_short_date(day)}</td>'
-            f'<td class="os-prop">{html.escape(prop)}</td></tr>'
-            for day, prop in rows_data
-        )
+    if owner_stays:
+        def _row(s: dict) -> str:
+            until = "Today" if s["days_until"] == 0 else f"in {s['days_until']}d"
+            city_span = f' <span class="os-city">({html.escape(s["city"])})</span>' if s.get("city") else ""
+            label = _TYPE_LABEL.get(s["source"], s["source"])
+            return (
+                f'<tr>'
+                f'<td class="os-date">{_fmt_short_date(s["check_in"])}</td>'
+                f'<td class="os-prop">{html.escape(s["listing_name"])}{city_span}</td>'
+                f'<td class="os-type">{label}</td>'
+                f'<td class="os-until">{until}</td>'
+                f'<td class="os-checkout">→ {_fmt_short_date(s["check_out"])}</td>'
+                f'</tr>'
+            )
+        rows_html = "".join(_row(s) for s in owner_stays)
     else:
-        rows_html = '<tr><td colspan="2" class="os-empty">No owner stays scheduled</td></tr>'
+        rows_html = '<tr><td colspan="5" class="os-empty">No owner stays in the next 30 days</td></tr>'
 
     return f"""<section class="section fade-in">
-  <h2 class="section-title section-title--owner">Owner Stays — Next 7 Days</h2>
+  <h2 class="section-title section-title--owner">Owner Stays — Next 30 Days</h2>
   <div class="owner-table-wrap">
     <table class="owner-table">
-      <thead><tr><th>Date</th><th>Property</th></tr></thead>
+      <thead><tr><th>Check-in</th><th>Property</th><th>Type</th><th>In</th><th>Check-out</th></tr></thead>
       <tbody>{rows_html}</tbody>
     </table>
   </div>

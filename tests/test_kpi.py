@@ -118,7 +118,7 @@ def kpis(reservations: list[dict], tasks: list[dict]) -> dict:
 def test_top_level_keys(kpis: dict) -> None:
     assert set(kpis.keys()) == {
         "today", "yesterday_bookings", "revenue",
-        "rolling_7_days", "data_quality", "operations_detail",
+        "rolling_7_days", "data_quality", "operations_detail", "owner_stays_upcoming",
     }
 
 
@@ -160,7 +160,7 @@ def test_empty_input() -> None:
     result = compute_kpis([], [], TEST_DATE)
     assert set(result.keys()) == {
         "today", "yesterday_bookings", "revenue",
-        "rolling_7_days", "data_quality", "operations_detail",
+        "rolling_7_days", "data_quality", "operations_detail", "owner_stays_upcoming",
     }
     assert result["today"]["checkins"] == []
     assert result["today"]["same_day_turns"] == []

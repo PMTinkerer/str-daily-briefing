@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 _OVERDUE_DEPARTMENTS = {"Maintenance", "Inspection"}
 
+# Guesty source values that indicate owner or owner-guest stays (no payout)
+_OWNER_SOURCES = {"owner", "owner-guest"}
+
 
 def _build_property_city_lookup(reservations: list[dict]) -> dict[str, str]:
     """Build a Breezeway property name -> city mapping from Guesty reservations.
@@ -92,6 +95,7 @@ def compute_kpis(
         "rolling_7_days": _compute_rolling_7_days(
             guesty_reservations, breezeway_tasks, next_7, prop_city_lookup
         ),
+        "owner_stays_upcoming": _compute_owner_stays_upcoming(guesty_reservations, today),
         "operations_detail": _compute_operations_detail(breezeway_tasks, next_7, today),
         "data_quality": {
             "guesty_available": bool(guesty_reservations),
@@ -208,6 +212,44 @@ def _compute_revenue(reservations: list[dict], report_month: str) -> dict:
     }
 
 
+def _compute_owner_stays_upcoming(
+    reservations: list[dict],
+    today: str,
+    horizon_days: int = 30,
+) -> list[dict]:
+    """Return upcoming owner and owner-guest stays within the next horizon_days.
+
+    Args:
+        reservations: List of Guesty reservation dicts.
+        today: Report date in YYYY-MM-DD format.
+        horizon_days: How many days ahead to look (default 30).
+
+    Returns:
+        List of dicts sorted by check_in, each with keys:
+            listing_name, city, check_in, check_out, source, days_until.
+    """
+    cutoff = (date.fromisoformat(today) + timedelta(days=horizon_days)).strftime("%Y-%m-%d")
+    upcoming = []
+    for r in reservations:
+        if r.get("source", "") not in _OWNER_SOURCES:
+            continue
+        checkin = r.get("check_in", "")
+        if not checkin or checkin < today or checkin > cutoff:
+            continue
+        days_until = (date.fromisoformat(checkin) - date.fromisoformat(today)).days
+        upcoming.append({
+            "listing_name": r["listing_name"],
+            "city": r.get("city", ""),
+            "check_in": checkin,
+            "check_out": r.get("check_out", ""),
+            "source": r["source"],
+            "days_until": days_until,
+        })
+    upcoming.sort(key=lambda x: x["check_in"])
+    logger.info("Found %d upcoming owner/owner-guest stays in next %d days", len(upcoming), horizon_days)
+    return upcoming
+
+
 def _compute_rolling_7_days(
     reservations: list[dict],
     tasks: list[dict],
@@ -220,7 +262,6 @@ def _compute_rolling_7_days(
     checkins_by_city: dict[str, dict[str, int]] = {}
     same_day_turns_by_city: dict[str, dict[str, int]] = {}
     inspections_by_city: dict[str, dict[str, int]] = {}
-    owner_stays_by_day: dict[str, list[str]] = {}
 
     for day in next_7:
         # Checkins by city (with property names for expandable table)
@@ -257,19 +298,10 @@ def _compute_rolling_7_days(
         ]
         inspections_by_city[day] = dict(Counter(c for c in insp_cities if c))
 
-        # Owner stays (only include dates with at least one)
-        day_owner_stays = [
-            t["property_name"] for t in tasks
-            if t["due_date"] == day and "Owner Stay" in t["task_title"]
-        ]
-        if day_owner_stays:
-            owner_stays_by_day[day] = day_owner_stays
-
     return {
         "checkins_by_city": checkins_by_city,
         "same_day_turns_by_city": same_day_turns_by_city,
         "inspections_by_city": inspections_by_city,
-        "owner_stays_by_day": owner_stays_by_day,
     }
 
 
