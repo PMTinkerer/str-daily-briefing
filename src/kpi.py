@@ -292,11 +292,15 @@ def _compute_rolling_7_days(
             and "Arrival Inspection" in t["task_title"]
             and "Escalation" not in t["task_title"]
         ]
-        insp_cities = [
-            _lookup_city(t["property_name"], prop_city_lookup) or t.get("city", "")
-            for t in day_inspections
-        ]
-        inspections_by_city[day] = dict(Counter(c for c in insp_cities if c))
+        insp_city_groups: dict[str, list[str]] = {}
+        for t in day_inspections:
+            city = _lookup_city(t["property_name"], prop_city_lookup) or t.get("city", "")
+            if city:
+                insp_city_groups.setdefault(city, []).append(t["property_name"])
+        inspections_by_city[day] = {
+            city: {"count": len(props), "properties": sorted(props)}
+            for city, props in insp_city_groups.items()
+        }
 
     return {
         "checkins_by_city": checkins_by_city,

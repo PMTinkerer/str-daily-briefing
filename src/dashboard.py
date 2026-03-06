@@ -411,8 +411,8 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
 </table>
 </div>"""
 
-    def _expandable_checkins_table(by_city: dict, title: str) -> str:
-        """Render the check-ins table with expandable city rows showing property names."""
+    def _expandable_table(by_city: dict, title: str, group_prefix: str) -> str:
+        """Render a city × date table with expandable rows showing property names per city."""
         all_cities = sorted({city for day_data in by_city.values() for city in day_data})
         if not all_cities:
             return f"<h3 class='table-subtitle'>{html.escape(title)}</h3><p class='empty'>No data</p>"
@@ -427,7 +427,7 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
         )
         city_rows = ""
         for city_idx, city in enumerate(all_cities):
-            group_id = f"ci-{city_idx}"
+            group_id = f"{group_prefix}-{city_idx}"
             count_cells = "".join(
                 f'<td class="{"today-col" if d == report_date else ""}">'
                 f'{by_city.get(d, {}).get(city, {}).get("count", 0) or "—"}</td>'
@@ -440,7 +440,6 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
                 f'<span class="toggle-arrow">▶</span>{html.escape(city)}'
                 f'</td>{count_cells}</tr>'
             )
-            # Collect all properties for this city across all days
             all_props = sorted({
                 prop
                 for day_data in by_city.values()
@@ -466,11 +465,11 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
 
     return f"""<section class="section fade-in">
   <h2 class="section-title">Rolling 7-Day Outlook</h2>
-  {_expandable_checkins_table(checkins_by_city, "Check-ins by City")}
+  {_expandable_table(checkins_by_city, "Check-ins by City", "ci")}
   <div class="table-spacer"></div>
   {_plain_table(turns_by_city, "Same-Day Turns by City")}
   <div class="table-spacer"></div>
-  {_plain_table(inspections_by_city, "Arrival Inspections by City")}
+  {_expandable_table(inspections_by_city, "Arrival Inspections by City", "insp")}
 </section>"""
 
 
