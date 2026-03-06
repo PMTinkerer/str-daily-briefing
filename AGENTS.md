@@ -57,6 +57,7 @@ Key modules:
 - Key columns: Task title, Property, Department, Assignees, Due date, Status, Priority, Requested by
 - Due date formats: M/DD/YY or YYYY-MM-DD (parser handles both)
 - "Requested by: Guest" = guest-initiated task
+- CSV is exported with a UTF-8 BOM (`\ufeff`) — parser strips it automatically via `csv_content.lstrip("\ufeff")`
 
 ### Price Labs
 - Not yet implemented — placeholder only
@@ -81,10 +82,21 @@ Key modules:
 - `.gitignore`
 - `requirements.txt` (unless the task requires a new dependency)
 
+## Overdue and Stale Task Filtering
+Overdue and stale tasks are intentionally filtered to **Maintenance and Inspection departments only**.
+Cleaning tasks accumulate as overdue because cleaners don't reliably mark them complete.
+The constant `_OVERDUE_DEPARTMENTS = {"Maintenance", "Inspection"}` in `src/kpi.py` controls this.
+`high_priority_overdue`, `guest_requests_overdue`, and `stale_tasks` all inherit this filter.
+
+## Narrative Date Context
+`src/narrative.py` prepends `"Today is {date} ({weekday}). Tomorrow is {tomorrow}."` before the KPI JSON
+so the Claude API uses actual dates (e.g., "Friday, March 6") rather than relative terms like "tomorrow."
+
 ## Common Mistakes to Avoid
 - Gmail API email bodies are base64-encoded — always decode before parsing
 - Guesty HTML may have inconsistent whitespace in table cells — strip all values
 - Breezeway CSV may have empty rows or trailing commas — handle gracefully
+- Breezeway CSV has a UTF-8 BOM — always strip with `csv_content.lstrip("\ufeff")` before parsing
 - Property names differ between Guesty and Breezeway — do not try to match them
 - Properties range from 8 (winter) to 50+ (summer) — never hardcode property lists
 
