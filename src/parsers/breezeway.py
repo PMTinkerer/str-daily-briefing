@@ -29,7 +29,7 @@ def parse_breezeway_report(csv_content: str) -> list[dict]:
             estimated_time_minutes (int), created_date (str, YYYY-MM-DD),
             task_report_link (str).
     """
-    reader = csv.DictReader(io.StringIO(csv_content))
+    reader = csv.DictReader(io.StringIO(csv_content.lstrip("\ufeff")))
     tasks: list[dict] = []
 
     for row_num, row in enumerate(reader, start=2):
