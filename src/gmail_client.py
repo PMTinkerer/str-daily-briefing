@@ -1,10 +1,14 @@
 """Gmail API authentication and email fetching utilities."""
 
+from __future__ import annotations
+
 import base64
 import logging
 import os
 import time
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
 from google.auth.transport.requests import Request
@@ -17,7 +21,10 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+]
 
 
 def authenticate() -> Resource:
@@ -187,6 +194,38 @@ def _walk_parts(
 
     for sub_part in part.get("parts", []):
         _walk_parts(service, message_id, sub_part, body_html_ref, attachments)
+
+
+def send_email(
+    service: Resource,
+    to: list[str],
+    subject: str,
+    html_body: str,
+) -> bool:
+    """Send an HTML email from the authenticated Gmail account.
+
+    Args:
+        service: Authenticated Gmail API service resource.
+        to: List of recipient email addresses.
+        subject: Email subject line.
+        html_body: HTML string for the email body.
+
+    Returns:
+        True on success, False on failure (error is logged, not raised).
+    """
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = "me"
+        msg["To"] = ", ".join(to)
+        msg.attach(MIMEText(html_body, "html"))
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        logger.info("Email sent to %d recipient(s): %s", len(to), subject)
+        return True
+    except Exception:
+        logger.error("Failed to send email", exc_info=True)
+        return False
 
 
 def _decode_base64(data: str) -> str:
