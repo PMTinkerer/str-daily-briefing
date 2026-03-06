@@ -11,6 +11,54 @@ logger = logging.getLogger(__name__)
 _OVERDUE_DEPARTMENTS = {"Maintenance", "Inspection"}
 
 
+def _build_property_city_lookup(reservations: list[dict]) -> dict[str, str]:
+    """Build a Breezeway property name -> city mapping from Guesty reservations.
+
+    Uses exact match first, then prefix match to handle minor name discrepancies
+    (e.g., Guesty may truncate listing names slightly differently).
+
+    Args:
+        reservations: List of Guesty reservation dicts.
+
+    Returns:
+        Dict mapping listing_name to city for all Guesty properties seen.
+    """
+    lookup: dict[str, str] = {}
+    for r in reservations:
+        name = r.get("listing_name", "")
+        city = r.get("city", "")
+        if name and city:
+            lookup[name] = city
+    return lookup
+
+
+def _lookup_city(property_name: str, guesty_lookup: dict[str, str]) -> str:
+    """Look up a city for a Breezeway property name using the Guesty lookup.
+
+    Args:
+        property_name: Breezeway property name to look up.
+        guesty_lookup: Dict of Guesty listing_name -> city.
+
+    Returns:
+        City string if found, empty string if no match.
+    """
+    if not property_name:
+        return ""
+    # Exact match
+    if property_name in guesty_lookup:
+        return guesty_lookup[property_name]
+    # Prefix match: handles cases where one system truncates the name
+    for guesty_name, city in guesty_lookup.items():
+        if property_name.startswith(guesty_name) or guesty_name.startswith(property_name):
+            logger.debug(
+                "City lookup: '%s' matched '%s' via prefix → %s",
+                property_name, guesty_name, city,
+            )
+            return city
+    logger.debug("City lookup: no match for Breezeway property '%s'", property_name)
+    return ""
+
+
 def compute_kpis(
     guesty_reservations: list[dict],
     breezeway_tasks: list[dict],
@@ -35,11 +83,15 @@ def compute_kpis(
         for i in range(7)
     ]
 
+    prop_city_lookup = _build_property_city_lookup(guesty_reservations)
+
     return {
         "today": _compute_today(guesty_reservations, breezeway_tasks, today),
         "yesterday_bookings": _compute_yesterday_bookings(guesty_reservations, yesterday),
         "revenue": _compute_revenue(guesty_reservations, report_month),
-        "rolling_7_days": _compute_rolling_7_days(guesty_reservations, breezeway_tasks, next_7),
+        "rolling_7_days": _compute_rolling_7_days(
+            guesty_reservations, breezeway_tasks, next_7, prop_city_lookup
+        ),
         "operations_detail": _compute_operations_detail(breezeway_tasks, next_7, today),
         "data_quality": {
             "guesty_available": bool(guesty_reservations),
@@ -160,8 +212,11 @@ def _compute_rolling_7_days(
     reservations: list[dict],
     tasks: list[dict],
     next_7: list[str],
+    prop_city_lookup: dict[str, str] | None = None,
 ) -> dict:
     """Build the 'rolling_7_days' KPI section."""
+    if prop_city_lookup is None:
+        prop_city_lookup = {}
     checkins_by_city: dict[str, dict[str, int]] = {}
     same_day_turns_by_city: dict[str, dict[str, int]] = {}
     inspections_by_city: dict[str, dict[str, int]] = {}
@@ -189,13 +244,18 @@ def _compute_rolling_7_days(
         same_day_turns_by_city[day] = dict(Counter(turn_cities))
 
         # Arrival inspections by city (exclude escalations)
+        # City comes from Guesty lookup since Breezeway CSV lacks city data
         day_inspections = [
             t for t in tasks
             if t["due_date"] == day
             and "Arrival Inspection" in t["task_title"]
             and "Escalation" not in t["task_title"]
         ]
-        inspections_by_city[day] = dict(Counter(t["city"] for t in day_inspections))
+        insp_cities = [
+            _lookup_city(t["property_name"], prop_city_lookup) or t.get("city", "")
+            for t in day_inspections
+        ]
+        inspections_by_city[day] = dict(Counter(c for c in insp_cities if c))
 
         # Owner stays (only include dates with at least one)
         day_owner_stays = [
