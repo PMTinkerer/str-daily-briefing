@@ -2,8 +2,8 @@ name: Daily Briefing
 
 on:
   schedule:
-    # 4:30 AM ET = 09:30 UTC (EST / UTC-5); switch to 08:30 UTC during EDT (UTC-4)
-    - cron: "30 9 * * *"
+    # 4:30 AM ET = 08:30 UTC (EDT / UTC-4); in EST (UTC-5) this fires at 3:30 AM
+    - cron: "30 8 * * *"
   workflow_dispatch: # Allow manual trigger
 
 permissions:
