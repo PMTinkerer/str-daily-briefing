@@ -9,7 +9,8 @@ extracts key business metrics, and sends a formatted daily briefing email each m
 - Gmail API (google-api-python-client, google-auth-oauthlib) for reading and sending email
 - BeautifulSoup4 for parsing HTML email bodies (Guesty reports)
 - csv module (stdlib) for parsing CSV attachments (Breezeway reports)
-- GitHub Actions for scheduled daily execution at 4:30 AM ET
+- Anthropic API (claude-sonnet-4-5 for narrative, claude-haiku-4-5 for task classification)
+- GitHub Actions for scheduled daily execution at 4:30 AM EDT (8:30 UTC)
 
 ## Project Structure
 ```
@@ -23,12 +24,13 @@ str-daily-briefing/
 │       └── daily-briefing.yml
 ├── src/
 │   ├── __init__.py
-│   ├── main.py              # Orchestrator: fetch → parse → compute → narrate → dashboard → send
+│   ├── main.py              # Orchestrator: fetch → parse → compute → classify → narrate → dashboard → send
 │   ├── gmail_client.py      # Gmail API auth, fetch emails, send emails
 │   ├── email_report.py      # Build compact inline-HTML email summary (phone-friendly)
 │   ├── dashboard.py         # Build full self-contained HTML dashboard (saved to docs/)
-│   ├── narrative.py         # Generate morning briefing narrative via Claude API
+│   ├── narrative.py         # Generate morning briefing narrative via Claude API (sonnet-4-5)
 │   ├── kpi.py               # Aggregate parsed data into KPI snapshot
+│   ├── task_classifier.py   # Classify stale tasks as issues vs. scheduled via Claude Haiku
 │   ├── parsers/
 │   │   ├── __init__.py
 │   │   ├── guesty.py        # Parse Guesty HTML email into reservation dicts
@@ -44,6 +46,7 @@ str-daily-briefing/
 │   ├── test_guesty_parser.py
 │   ├── test_breezeway_parser.py
 │   ├── test_kpi.py
+│   ├── test_task_classifier.py
 │   └── sample_data/         # Sample email bodies and CSV files for testing
 ├── .env.example
 └── .gitignore
@@ -55,14 +58,18 @@ str-daily-briefing/
 - Sender: noreply@guesty.com
 - Subject pattern: contains "Guesty" and "report"
 - Format: HTML table in email body with columns:
-  CHECK-IN, CHECKOUT, LISTING, LISTING'S CITY, CREATION DATE, PLATFORM, COMMISSION
+  CHECK-IN, CHECK-OUT, LISTING, LISTING'S NICKNAME, LISTING'S CITY, CREATION DATE,
+  PLATFORM, COMMISSION, TOTAL PAYOUT, ACCOMMODATION FARE, SOURCE, CHANNEL RESERVATION ID
 - Dates are in "YYYY-MM-DD HH:MM AM/PM" format
-- COMMISSION is a float (dollar amount). This may expand to include revenue columns later.
-- Listing names contain " / " separator between short name and description
+- COMMISSION = management fee (our income) — primary revenue metric
+- TOTAL PAYOUT = host gross from channel (captured but secondary)
+- ACCOMMODATION FARE = nightly rate at booking time (captured but secondary)
+- SOURCE field identifies reservation type: "owner" and "owner-guest" = no-revenue stays
+- listing_name prefers LISTING'S NICKNAME column; falls back to parsing LISTING before " / "
 
 ### Breezeway (CSV attachment)
 - Sender: contains "breezeway" in from address
-- Format: CSV file attached to email
+- Format: CSV file attached to email, UTF-8 BOM — always strip with `csv_content.lstrip("\ufeff")`
 - Columns: Task title, Property, Department, Subdepartment, Assignees, Due date, Status,
   Priority, Bill to, Requested by, Estimated time, Created date, Created by,
   Last updated date, Task report link, Property Time Zone
@@ -85,14 +92,14 @@ str-daily-briefing/
 - IMPORTANT: Never commit credentials. .env and token files are in .gitignore.
 
 ## Testing
-- Run tests: `python -m pytest tests/ -v`
+- Run tests: `python3 -m pytest tests/ -v`
 - Each parser has a test file with sample data
 - Tests use sample data files in tests/sample_data/, not live API calls
 
 ## Before Saying You're Done
 Run these after every change. Do not declare completion until they pass:
-- `python -m pytest tests/ -v`
-- `python scripts/send_test_email.py --dry-run`
+- `python3 -m pytest tests/ -v`
+- `python3 scripts/send_test_email.py --dry-run`
 
 If either command fails, fix it in the same session before stopping.
 
@@ -122,12 +129,14 @@ Requires `gmail.send` scope.
 | `REPORT_SENDER_GUESTY` | `noreply@guesty.com` | Guesty sender filter |
 | `REPORT_SENDER_BREEZEWAY` | `breezeway` | Breezeway sender filter |
 | `DASHBOARD_URL` | GitHub Pages URL | Full dashboard link (used in email CTA) |
-| `ANTHROPIC_API_KEY` | _(required)_ | Claude API key for narrative generation |
+| `ANTHROPIC_API_KEY` | _(required)_ | Claude API key for narrative + task classification |
 | `REPORT_DATE` | today | Override report date (YYYY-MM-DD) |
 
 ## Common Mistakes to Avoid
 - Gmail API email bodies are base64-encoded — always decode before parsing
 - Guesty HTML may have inconsistent whitespace in table cells — strip all values
 - Breezeway CSV may have empty rows or trailing commas — handle gracefully
-- Property names differ slightly between Guesty and Breezeway — don't try to match them in v1
+- Breezeway CSV has a UTF-8 BOM — always strip before parsing
+- Property names differ slightly between Guesty and Breezeway — city lookup uses prefix matching
 - The number of properties changes seasonally (8 in winter, 50+ in summer) — never hardcode property lists
+- MTD and YTD commission filter by `creation_date` (booking date), NOT `check_in` date
