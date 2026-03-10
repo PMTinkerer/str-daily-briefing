@@ -36,6 +36,7 @@ def run_daily_briefing() -> None:
     from src.narrative import generate_narrative
     from src.parsers.breezeway import parse_breezeway_report
     from src.parsers.guesty import parse_guesty_report
+    from src.task_classifier import classify_stale_tasks
 
     report_date: str = os.getenv("REPORT_DATE") or date.today().isoformat()
     logger.info("Starting daily briefing for %s", report_date)
@@ -93,6 +94,14 @@ def run_daily_briefing() -> None:
         "\u2713" if dq.get("guesty_available") else "\u2717",
         "\u2713" if dq.get("breezeway_available") else "\u2717",
     )
+
+    # -------------------------------------------------------------------------
+    # d2. Classify stale tasks — filter out scheduled/recurring work via AI
+    # -------------------------------------------------------------------------
+    _api_key = os.getenv("ANTHROPIC_API_KEY")
+    _stale = kpis.get("operations_detail", {}).get("stale_tasks", [])
+    if _stale and _api_key:
+        kpis["operations_detail"]["stale_tasks"] = classify_stale_tasks(_stale, _api_key)
 
     # -------------------------------------------------------------------------
     # e. Generate narrative
