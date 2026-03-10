@@ -200,6 +200,19 @@ def test_stale_tasks(kpis: dict) -> None:
     assert "Guest Request - Extra Towels" in titles
 
 
+def test_revenue_mtd_and_ytd(kpis: dict) -> None:
+    rev = kpis["revenue"]
+    # MTD = reservations with creation_date in 2026-03: R1(500)+R3(250)+R4(1000)+R5(200) = 1950
+    # R2 was created 2026-02-01 so excluded from MTD
+    assert rev["mtd_commission"] == pytest.approx(1950.0)
+    # YTD = all reservations created in 2026: all 5 = 500+300+250+1000+200 = 2250
+    assert rev["ytd_commission"] == pytest.approx(2250.0)
+    # MTD < YTD because R2 (Feb creation) is in YTD but not MTD
+    assert rev["mtd_commission"] < rev["ytd_commission"]
+    # ytd_commission key must exist
+    assert "ytd_commission" in rev
+
+
 def test_assignee_workload(kpis: dict) -> None:
     workload = kpis["operations_detail"]["assignee_workload_7_days"]
     # T8 due 2026-03-06, within next 7 days of TEST_DATE=2026-03-04

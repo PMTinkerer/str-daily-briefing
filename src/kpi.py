@@ -183,10 +183,16 @@ def _compute_yesterday_bookings(reservations: list[dict], yesterday: str) -> dic
 
 def _compute_revenue(reservations: list[dict], report_month: str) -> dict:
     """Build the 'revenue' KPI section."""
+    report_year = report_month[:4]  # "YYYY"
+
     total_commission = sum(r["commission"] for r in reservations)
     mtd_commission = sum(
         r["commission"] for r in reservations
-        if r["check_in"].startswith(report_month)
+        if r.get("creation_date", "").startswith(report_month)
+    )
+    ytd_commission = sum(
+        r["commission"] for r in reservations
+        if r.get("creation_date", "").startswith(report_year)
     )
     count = len(reservations)
     avg = total_commission / count if count else 0.0
@@ -206,6 +212,7 @@ def _compute_revenue(reservations: list[dict], report_month: str) -> dict:
     return {
         "total_commission": round(total_commission, 2),
         "mtd_commission": round(mtd_commission, 2),
+        "ytd_commission": round(ytd_commission, 2),
         "avg_commission_per_reservation": round(avg, 2),
         "commission_by_property": {k: round(v, 2) for k, v in top_10.items()},
         "commission_by_platform": {k: round(v, 2) for k, v in platform_totals.items()},

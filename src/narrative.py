@@ -129,6 +129,7 @@ def _fallback_narrative(kpis: dict, report_date: str) -> str:
         "REVENUE (all time)",
         f"  Total commission: ${rev.get('total_commission', 0):,.2f}",
         f"  MTD commission:   ${rev.get('mtd_commission', 0):,.2f}",
+        f"  YTD commission:   ${rev.get('ytd_commission', 0):,.2f}",
         f"  Avg/reservation:  ${rev.get('avg_commission_per_reservation', 0):,.2f}",
     ]
     return "\n".join(lines)
