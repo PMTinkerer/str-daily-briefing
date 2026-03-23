@@ -17,6 +17,7 @@ def _make_reservation(
     creation_date: str,
     platform: str,
     commission: float,
+    source: str = "airbnb",
 ) -> dict:
     return {
         "check_in": check_in,
@@ -27,6 +28,7 @@ def _make_reservation(
         "creation_date": creation_date,
         "platform": platform,
         "commission": commission,
+        "source": source,
     }
 
 
@@ -78,6 +80,8 @@ def reservations() -> list[dict]:
         _make_reservation("2026-03-10", "2026-03-15", "Farm Stay", "Kennebunk", YESTERDAY, "Direct", 1000.0),
         # R5: next week, created yesterday
         _make_reservation("2026-03-07", "2026-03-08", "Hideaway", "Ogunquit", YESTERDAY, "Airbnb", 200.0),
+        # R6: check-in in 2025 (prior year), created in 2026 — should NOT count in YTD
+        _make_reservation("2025-12-28", "2025-12-31", "Winter Lodge", "Kennebunk", "2026-01-02", "Direct", 400.0),
     ]
 
 
@@ -118,7 +122,8 @@ def kpis(reservations: list[dict], tasks: list[dict]) -> dict:
 def test_top_level_keys(kpis: dict) -> None:
     assert set(kpis.keys()) == {
         "today", "yesterday_bookings", "revenue",
-        "rolling_7_days", "data_quality", "operations_detail", "owner_stays_upcoming",
+        "rolling_7_days", "data_quality", "operations_detail",
+        "owner_stays_upcoming", "first_stays_of_year",
     }
 
 
@@ -160,7 +165,8 @@ def test_empty_input() -> None:
     result = compute_kpis([], [], TEST_DATE)
     assert set(result.keys()) == {
         "today", "yesterday_bookings", "revenue",
-        "rolling_7_days", "data_quality", "operations_detail", "owner_stays_upcoming",
+        "rolling_7_days", "data_quality", "operations_detail",
+        "owner_stays_upcoming", "first_stays_of_year",
     }
     assert result["today"]["checkins"] == []
     assert result["today"]["same_day_turns"] == []
@@ -205,9 +211,10 @@ def test_revenue_mtd_and_ytd(kpis: dict) -> None:
     # MTD = reservations with creation_date in 2026-03: R1(500)+R3(250)+R4(1000)+R5(200) = 1950
     # R2 was created 2026-02-01 so excluded from MTD
     assert rev["mtd_commission"] == pytest.approx(1950.0)
-    # YTD = all reservations created in 2026: all 5 = 500+300+250+1000+200 = 2250
+    # YTD = reservations with check_in in 2026: R1(500)+R2(300)+R3(250)+R4(1000)+R5(200) = 2250
+    # R6 has check_in in 2025, so excluded from YTD despite being created in 2026
     assert rev["ytd_commission"] == pytest.approx(2250.0)
-    # MTD < YTD because R2 (Feb creation) is in YTD but not MTD
+    # MTD < YTD because R2 (check-in 2026-03-10) is in YTD but not MTD
     assert rev["mtd_commission"] < rev["ytd_commission"]
     # ytd_commission key must exist
     assert "ytd_commission" in rev
@@ -218,3 +225,94 @@ def test_assignee_workload(kpis: dict) -> None:
     # T8 due 2026-03-06, within next 7 days of TEST_DATE=2026-03-04
     assert "Maria Santos" in workload
     assert workload["Maria Santos"] >= 1
+
+
+# ── First Stays of the Year ──────────────────────────────────────────────────
+
+def test_first_stays_basic(kpis: dict) -> None:
+    """Existing fixtures: all properties have first stays on or after TEST_DATE."""
+    first = kpis["first_stays_of_year"]
+    # Beach House and Sea Cottage check in on TEST_DATE (2026-03-04) → within 45 days
+    # Hideaway checks in 2026-03-07 → within 45 days
+    # Farm Stay checks in 2026-03-10 → within 45 days
+    # Sea Cottage has two reservations (R2 check-in 2026-03-10, R3 check-in 2026-03-04)
+    #   → first stay = 2026-03-04 (R3), within window
+    # Winter Lodge (R6) check-in is 2025 → excluded (wrong year)
+    names = [s["listing_name"] for s in first]
+    assert "Beach House" in names
+    assert "Sea Cottage" in names
+    assert "Hideaway" in names
+    assert "Farm Stay" in names
+    assert "Winter Lodge" not in names
+    # Should be sorted by check_in
+    dates = [s["check_in"] for s in first]
+    assert dates == sorted(dates)
+
+
+def test_first_stays_excludes_already_past() -> None:
+    """A property whose first stay of the year already happened should be excluded."""
+    reservations = [
+        # First stay was in January (already past relative to TEST_DATE=March 4)
+        _make_reservation("2026-01-10", "2026-01-15", "Early Bird", "Portland",
+                          "2025-12-01", "Airbnb", 300.0),
+        # Second stay is upcoming
+        _make_reservation("2026-03-20", "2026-03-25", "Early Bird", "Portland",
+                          "2026-02-15", "Airbnb", 500.0),
+    ]
+    result = compute_kpis(reservations, [], TEST_DATE)
+    names = [s["listing_name"] for s in result["first_stays_of_year"]]
+    assert "Early Bird" not in names
+
+
+def test_first_stays_excludes_owner_stays() -> None:
+    """Owner stays should not count as a property's first stay of the year."""
+    reservations = [
+        # Owner stay is the only stay this year
+        _make_reservation("2026-03-10", "2026-03-15", "Owner Only", "York",
+                          "2026-02-01", "Direct", 0.0, source="owner"),
+    ]
+    result = compute_kpis(reservations, [], TEST_DATE)
+    names = [s["listing_name"] for s in result["first_stays_of_year"]]
+    assert "Owner Only" not in names
+
+
+def test_first_stays_owner_before_guest() -> None:
+    """Owner stay before a guest stay should not disqualify the guest stay."""
+    reservations = [
+        # Owner stay first
+        _make_reservation("2026-03-05", "2026-03-08", "Mixed Use", "York",
+                          "2026-01-10", "Direct", 0.0, source="owner"),
+        # Guest stay after
+        _make_reservation("2026-03-15", "2026-03-20", "Mixed Use", "York",
+                          "2026-02-01", "Airbnb", 600.0),
+    ]
+    result = compute_kpis(reservations, [], TEST_DATE)
+    first = result["first_stays_of_year"]
+    names = [s["listing_name"] for s in first]
+    assert "Mixed Use" in names
+    match = [s for s in first if s["listing_name"] == "Mixed Use"][0]
+    assert match["check_in"] == "2026-03-15"
+    assert match["days_until"] == 11
+
+
+def test_first_stays_beyond_horizon() -> None:
+    """A property whose first stay is beyond 45 days should be excluded."""
+    reservations = [
+        # First stay is 50 days from TEST_DATE (2026-03-04 + 50 = 2026-04-23)
+        _make_reservation("2026-04-23", "2026-04-28", "Late Bloomer", "Ogunquit",
+                          "2026-02-01", "VRBO", 400.0),
+    ]
+    result = compute_kpis(reservations, [], TEST_DATE)
+    names = [s["listing_name"] for s in result["first_stays_of_year"]]
+    assert "Late Bloomer" not in names
+
+
+def test_first_stays_days_until(kpis: dict) -> None:
+    """Verify days_until is correctly computed."""
+    first = kpis["first_stays_of_year"]
+    beach = [s for s in first if s["listing_name"] == "Beach House"][0]
+    # Beach House checks in on TEST_DATE itself → days_until = 0
+    assert beach["days_until"] == 0
+    hideaway = [s for s in first if s["listing_name"] == "Hideaway"][0]
+    # Hideaway checks in 2026-03-07, TEST_DATE=2026-03-04 → 3 days
+    assert hideaway["days_until"] == 3

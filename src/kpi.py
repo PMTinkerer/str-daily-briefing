@@ -79,10 +79,21 @@ def compute_kpis(
         rolling_7_days, data_quality.
     """
     today = report_date
-    yesterday = (date.fromisoformat(report_date) - timedelta(days=1)).strftime("%Y-%m-%d")
+    try:
+        report_date_obj = date.fromisoformat(report_date)
+    except ValueError:
+        logger.error("Invalid report_date: %s — returning empty KPIs", report_date)
+        return {
+            "today": {}, "yesterday_bookings": {}, "revenue": {},
+            "rolling_7_days": {}, "owner_stays_upcoming": [],
+            "operations_detail": {},
+            "data_quality": {"guesty_available": False, "breezeway_available": False,
+                             "guesty_reservation_count": 0, "breezeway_task_count": 0},
+        }
+    yesterday = (report_date_obj - timedelta(days=1)).strftime("%Y-%m-%d")
     report_month = report_date[:7]  # "YYYY-MM"
     next_7 = [
-        (date.fromisoformat(report_date) + timedelta(days=i)).strftime("%Y-%m-%d")
+        (report_date_obj + timedelta(days=i)).strftime("%Y-%m-%d")
         for i in range(7)
     ]
 
@@ -96,6 +107,7 @@ def compute_kpis(
             guesty_reservations, breezeway_tasks, next_7, prop_city_lookup
         ),
         "owner_stays_upcoming": _compute_owner_stays_upcoming(guesty_reservations, today),
+        "first_stays_of_year": _compute_first_stays_of_year(guesty_reservations, today),
         "operations_detail": _compute_operations_detail(breezeway_tasks, next_7, today),
         "data_quality": {
             "guesty_available": bool(guesty_reservations),
@@ -192,7 +204,7 @@ def _compute_revenue(reservations: list[dict], report_month: str) -> dict:
     )
     ytd_commission = sum(
         r["commission"] for r in reservations
-        if r.get("creation_date", "").startswith(report_year)
+        if r.get("check_in", "").startswith(report_year)
     )
     count = len(reservations)
     avg = total_commission / count if count else 0.0
@@ -235,7 +247,12 @@ def _compute_owner_stays_upcoming(
         List of dicts sorted by check_in, each with keys:
             listing_name, city, check_in, check_out, source, days_until.
     """
-    cutoff = (date.fromisoformat(today) + timedelta(days=horizon_days)).strftime("%Y-%m-%d")
+    try:
+        today_d = date.fromisoformat(today)
+    except ValueError:
+        logger.warning("Invalid today date in owner stays: %s", today)
+        return []
+    cutoff = (today_d + timedelta(days=horizon_days)).strftime("%Y-%m-%d")
     upcoming = []
     for r in reservations:
         if r.get("source", "") not in _OWNER_SOURCES:
@@ -243,7 +260,11 @@ def _compute_owner_stays_upcoming(
         checkin = r.get("check_in", "")
         if not checkin or checkin < today or checkin > cutoff:
             continue
-        days_until = (date.fromisoformat(checkin) - date.fromisoformat(today)).days
+        try:
+            days_until = (date.fromisoformat(checkin) - today_d).days
+        except ValueError:
+            logger.warning("Skipping owner stay with invalid check_in date: %s", checkin)
+            continue
         upcoming.append({
             "listing_name": r["listing_name"],
             "city": r.get("city", ""),
@@ -255,6 +276,73 @@ def _compute_owner_stays_upcoming(
     upcoming.sort(key=lambda x: x["check_in"])
     logger.info("Found %d upcoming owner/owner-guest stays in next %d days", len(upcoming), horizon_days)
     return upcoming
+
+
+def _compute_first_stays_of_year(
+    reservations: list[dict],
+    today: str,
+    horizon_days: int = 45,
+) -> list[dict]:
+    """Return properties whose first guest stay of the calendar year is upcoming.
+
+    Identifies properties where the earliest revenue-generating check-in of the
+    current year falls within the next horizon_days. Owner/owner-guest stays are
+    excluded.
+
+    Args:
+        reservations: List of Guesty reservation dicts.
+        today: Report date in YYYY-MM-DD format.
+        horizon_days: How many days ahead to look (default 45).
+
+    Returns:
+        List of dicts sorted by check_in, each with keys:
+            listing_name, city, check_in, days_until.
+    """
+    try:
+        today_d = date.fromisoformat(today)
+    except ValueError:
+        logger.warning("Invalid today date in first stays: %s", today)
+        return []
+    report_year = today[:4]
+    cutoff = (today_d + timedelta(days=horizon_days)).strftime("%Y-%m-%d")
+
+    # Find earliest guest check-in this year per property
+    first_by_prop: dict[str, dict] = {}
+    for r in reservations:
+        if r.get("source", "") in _OWNER_SOURCES:
+            continue
+        checkin = r.get("check_in", "")
+        if not checkin or not checkin.startswith(report_year):
+            continue
+        name = r.get("listing_name", "")
+        if not name:
+            continue
+        if name not in first_by_prop or checkin < first_by_prop[name]["check_in"]:
+            first_by_prop[name] = {
+                "listing_name": name,
+                "city": r.get("city", ""),
+                "check_in": checkin,
+            }
+
+    # Keep only properties whose first stay is upcoming and within horizon
+    result = []
+    for prop in first_by_prop.values():
+        checkin = prop["check_in"]
+        if checkin < today or checkin > cutoff:
+            continue
+        try:
+            days_until = (date.fromisoformat(checkin) - today_d).days
+        except ValueError:
+            continue
+        prop["days_until"] = days_until
+        result.append(prop)
+
+    result.sort(key=lambda x: x["check_in"])
+    logger.info(
+        "Found %d properties with first stay of year in next %d days",
+        len(result), horizon_days,
+    )
+    return result
 
 
 def _compute_rolling_7_days(
@@ -327,7 +415,11 @@ def _compute_operations_detail(tasks: list[dict], next_7: list[str], today: str)
     Returns:
         Dict with keys: tasks_by_department_all, assignee_workload_7_days, stale_tasks.
     """
-    stale_cutoff = (date.fromisoformat(today) - timedelta(days=14)).strftime("%Y-%m-%d")
+    try:
+        stale_cutoff = (date.fromisoformat(today) - timedelta(days=14)).strftime("%Y-%m-%d")
+    except ValueError:
+        logger.warning("Invalid today date in operations detail: %s", today)
+        stale_cutoff = ""
 
     dept_all: dict[str, int] = {}
     for t in tasks:

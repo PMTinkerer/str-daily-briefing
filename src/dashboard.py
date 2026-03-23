@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 # City color palette for charts (cycles if more cities than colors)
 _CITY_COLORS = [
-    "#2ba5b5", "#e67e22", "#9b59b6", "#27ae60", "#e74c3c",
-    "#3498db", "#f1c40f", "#1abc9c", "#e91e63", "#607d8b",
+    "#3db8c1", "#d4952e", "#5b8bd4", "#4fa87a", "#d94f4f",
+    "#7a8ec6", "#c9a84c", "#45a89a", "#c4637a", "#7a8a96",
 ]
 
 
@@ -89,6 +89,7 @@ def build_dashboard(kpis: dict, narrative: str, report_date: str) -> str:
         _render_rolling_tables(r7, report_date),
         _render_assignee_workload(ops),
         _render_owner_stays(kpis.get("owner_stays_upcoming", [])),
+        _render_first_stays(kpis.get("first_stays_of_year", [])),
         _render_charts_section(rev, yday, today_kpis, dq, r7, report_date),
         _render_overdue_table(overdue_sorted, report_date_obj),
         _render_tasks_pie(today_kpis, report_date),
@@ -113,7 +114,7 @@ def _render_head(formatted_date: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STR Daily Briefing — {html.escape(formatted_date)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
 {_css()}
 </style>
@@ -128,8 +129,10 @@ def _render_head(formatted_date: str) -> str:
 def _render_header(formatted_date: str) -> str:
     return f"""<header class="site-header">
   <div class="header-inner">
-    <div class="header-logo">🏖</div>
-    <h1>Grand Welcome STR<br><span class="header-sub">Daily Briefing</span></h1>
+    <div class="header-left">
+      <p class="header-eyebrow">Grand Welcome STR</p>
+      <h1>Daily Briefing</h1>
+    </div>
     <p class="header-date">{html.escape(formatted_date)}</p>
   </div>
 </header>"""
@@ -149,7 +152,7 @@ def _render_quality_banner(dq: dict) -> str:
         return ""
     sources = " and ".join(html.escape(s) for s in missing)
     return f"""<div class="quality-banner">
-  ⚠️ <strong>Data Warning:</strong> {sources} {'is' if len(missing) == 1 else 'are'} unavailable.
+  <strong>Data Warning:</strong> {sources} {'is' if len(missing) == 1 else 'are'} unavailable.
   Numbers below may be incomplete.
 </div>"""
 
@@ -428,14 +431,15 @@ def _render_rolling_tables(r7: dict, report_date: str) -> str:
         city_rows = ""
         for city_idx, city in enumerate(all_cities):
             group_id = f"{group_prefix}-{city_idx}"
+            escaped_group_id = html.escape(group_id, quote=True)
             count_cells = "".join(
                 f'<td class="{"today-col" if d == report_date else ""}">'
                 f'{by_city.get(d, {}).get(city, {}).get("count", 0) or "—"}</td>'
                 for d in dates
             )
             city_rows += (
-                f'<tr class="city-row" data-group="{group_id}" '
-                f'onclick="toggleCity(\'{group_id}\')">'
+                f'<tr class="city-row" data-group="{escaped_group_id}" '
+                f'onclick="toggleCity(this.dataset.group)">'
                 f'<td class="city-cell">'
                 f'<span class="toggle-arrow">▶</span>{html.escape(city)}'
                 f'</td>{count_cells}</tr>'
@@ -511,6 +515,38 @@ def _render_owner_stays(owner_stays: list[dict]) -> str:
 
 
 # ══════════════════════════════════════════════
+# SECTION: First Stays of the Year
+# ══════════════════════════════════════════════
+
+def _render_first_stays(first_stays: list[dict]) -> str:
+    """Render properties whose first guest stay of the year is upcoming (45-day horizon)."""
+    if first_stays:
+        def _row(s: dict) -> str:
+            until = "Today" if s["days_until"] == 0 else f"in {s['days_until']}d"
+            city_span = f' <span class="os-city">({html.escape(s["city"])})</span>' if s.get("city") else ""
+            return (
+                f'<tr>'
+                f'<td class="os-date">{_fmt_short_date(s["check_in"])}</td>'
+                f'<td class="os-prop">{html.escape(s["listing_name"])}{city_span}</td>'
+                f'<td class="os-until">{until}</td>'
+                f'</tr>'
+            )
+        rows_html = "".join(_row(s) for s in first_stays)
+    else:
+        rows_html = '<tr><td colspan="3" class="os-empty">No season openers in the next 45 days</td></tr>'
+
+    return f"""<section class="section fade-in">
+  <h2 class="section-title section-title--owner">Season Openers — First Stays of the Year</h2>
+  <div class="owner-table-wrap">
+    <table class="owner-table">
+      <thead><tr><th>Check-in</th><th>Property</th><th>In</th></tr></thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+  </div>
+</section>"""
+
+
+# ══════════════════════════════════════════════
 # SECTION: Overdue Tasks
 # ══════════════════════════════════════════════
 
@@ -536,7 +572,7 @@ def _render_overdue_table(overdue_sorted: list, report_date_obj: date) -> str:
 </tr>"""
 
     return f"""<section class="section fade-in">
-  <h2 class="section-title section-title--alert">⚠ Overdue Tasks</h2>
+  <h2 class="section-title section-title--alert">Overdue Tasks</h2>
   <div class="table-wrap">
   <table class="data-table overdue-table">
     <thead>
@@ -600,7 +636,7 @@ def _render_stale_tasks(ops: dict, report_date: str) -> str:
         return ""
 
     return f"""<section class="section fade-in">
-  <h2 class="section-title section-title--warn">⏱ Stale Tasks (No Updates in 14+ Days)</h2>
+  <h2 class="section-title section-title--warn">Stale Tasks — No Updates in 14+ Days</h2>
   <div class="st-table-wrap">
     <table class="st-table">
       <thead><tr><th>Property</th><th>Task</th><th>Last Updated</th><th>Days</th></tr></thead>
@@ -648,13 +684,13 @@ const TASKS_DATA    = {json.dumps(tasks_data)};
 const DEPT_DATA     = {json.dumps(dept_data)};
 
 // ── Chart defaults ──────────────────────────────────────────────
-Chart.defaults.color = '#8892a4';
-Chart.defaults.borderColor = '#2d3550';
-Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#707a8a';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
 
-const TEAL = '#2ba5b5';
-const ALERT = '#e74c3c';
-const WARN = '#f39c12';
+const TEAL = '#3db8c1';
+const ALERT = '#d94f4f';
+const WARN = '#d4952e';
 
 // Commission by Platform (horizontal bar)
 new Chart(document.getElementById('chartPlatform'), {{
@@ -702,7 +738,7 @@ new Chart(document.getElementById('chartTasks'), {{
       data: TASKS_DATA.data,
       backgroundColor: TASKS_DATA.colors,
       borderWidth: 2,
-      borderColor: '#232a3b',
+      borderColor: '#191c24',
     }}]
   }},
   options: {{
@@ -823,11 +859,11 @@ def _build_yesterday_chart_data(yday: dict) -> dict:
 def _build_dept_chart_data(ops: dict) -> dict:
     """Build tasks-by-department chart data with department-specific colors."""
     _COLOR_MAP = {
-        "housekeeping":    "#2ba5b5",  # teal
-        "cleaning":        "#2ba5b5",  # teal
-        "maintenance":     "#f39c12",  # orange
-        "inspection":      "#3498db",  # blue
-        "guest experience": "#9b59b6", # purple
+        "housekeeping":    "#3db8c1",  # teal
+        "cleaning":        "#3db8c1",  # teal
+        "maintenance":     "#d4952e",  # amber
+        "inspection":      "#5b8bd4",  # blue
+        "guest experience": "#c4637a", # rose
     }
     dept_totals = ops.get("tasks_by_department_all", {})
     labels = list(dept_totals.keys())
@@ -865,21 +901,26 @@ def _fmt_long_date(date_str: str) -> str:
 def _css() -> str:
     return """
 :root {
-  --bg: #1a1f2e;
-  --surface: #232a3b;
-  --surface2: #2d3550;
-  --teal: #2ba5b5;
-  --teal-dim: rgba(43,165,181,0.15);
-  --alert: #e74c3c;
-  --alert-dim: rgba(231,76,60,0.15);
-  --warn: #f39c12;
-  --warn-dim: rgba(243,156,18,0.15);
-  --text: #e8eaf0;
-  --muted: #8892a4;
-  --border: #2d3550;
-  --radius: 10px;
-  --owner: #9b59b6;
-  --owner-dim: rgba(155,89,182,0.15);
+  --bg: #111318;
+  --surface: #191c24;
+  --surface2: #21252f;
+  --surface3: #292e3a;
+  --accent: #3db8c1;
+  --accent-dim: rgba(61,184,193,0.10);
+  --accent-subtle: rgba(61,184,193,0.06);
+  --alert: #d94f4f;
+  --alert-dim: rgba(217,79,79,0.10);
+  --warn: #d4952e;
+  --warn-dim: rgba(212,149,46,0.10);
+  --text: #e4e7ed;
+  --text-2: #b0b8c8;
+  --muted: #707a8a;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.10);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -887,147 +928,173 @@ def _css() -> str:
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font);
   font-size: 15px;
   line-height: 1.6;
-  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Header ── */
 .site-header {
-  background: linear-gradient(135deg, #0f1320 0%, #1a2540 50%, #1a1f2e 100%);
-  border-bottom: 1px solid var(--border);
-  padding: 2rem 1.5rem 1.5rem;
-  text-align: center;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 2rem 1.5rem 1.75rem;
 }
-.header-inner { max-width: 900px; margin: 0 auto; }
-.header-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.header-left { display: flex; flex-direction: column; gap: 0.15rem; }
+.header-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
 .site-header h1 {
-  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
   font-weight: 700;
   color: var(--text);
-  line-height: 1.2;
-  letter-spacing: -0.5px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
-.header-sub { color: var(--teal); }
 .header-date {
-  margin-top: 0.5rem;
   color: var(--muted);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .header-inner { flex-direction: column; gap: 0.5rem; }
 }
 
 /* ── Quality banner ── */
 .quality-banner {
   background: var(--warn-dim);
-  border: 1px solid var(--warn);
+  border-bottom: 1px solid rgba(212,149,46,0.2);
   color: var(--warn);
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.5rem;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 /* ── Layout ── */
 .section {
   max-width: 1100px;
-  margin: 2rem auto;
+  margin: 2.5rem auto;
   padding: 0 1.25rem;
 }
 .section-title {
-  font-size: 1.1rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--teal);
+  color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
 }
 .section-title--alert { color: var(--alert); }
-.section-title--owner { color: var(--owner); }
+.section-title--owner { color: var(--accent); }
+.section-title--teal { color: var(--accent); }
+.section-title--warn { color: var(--warn); }
 
 /* ── Fade-in animation ── */
-.fade-in { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.fade-in {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.45s cubic-bezier(0.16,1,0.3,1), transform 0.45s cubic-bezier(0.16,1,0.3,1);
+}
 .fade-in.visible { opacity: 1; transform: none; }
 
 /* ── Narrative ── */
 .narrative-card {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 1.5rem;
-  border: 1px solid var(--border);
+  padding: 1.75rem;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
 }
 .narrative-accent {
   flex-shrink: 0;
-  width: 4px;
-  background: var(--teal);
-  border-radius: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 3px;
 }
-.narrative-body { color: var(--text); line-height: 1.8; font-size: 0.97rem; }
-.narrative-body h3 { color: var(--teal); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 1.1rem 0 0.3rem; }
-.narrative-body h4 { color: var(--muted); font-size: 0.9rem; font-weight: 600; margin: 0.8rem 0 0.25rem; }
+.narrative-body { color: var(--text-2); line-height: 1.8; font-size: 0.93rem; }
+.narrative-body h3 { color: var(--accent); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 1.25rem 0 0.35rem; }
+.narrative-body h4 { color: var(--muted); font-size: 0.88rem; font-weight: 600; margin: 0.8rem 0 0.25rem; }
 .narrative-body p { margin-bottom: 0.7rem; }
 .narrative-body p:last-child { margin-bottom: 0; }
 .narrative-body ul { padding-left: 1.4rem; margin-bottom: 0.7rem; }
-.narrative-body li { margin-bottom: 0.2rem; }
+.narrative-body li { margin-bottom: 0.25rem; }
 .narrative-body ul:last-child { margin-bottom: 0; }
 
 /* ── Stat cards ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
 }
-@media (max-width: 700px) { .card-grid { grid-template-columns: 1fr; } }
-@media (min-width: 701px) and (max-width: 900px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .card-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 601px) and (max-width: 900px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem;
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.15rem;
+  transition: border-color 0.2s ease;
 }
-.card--warn { background: var(--warn-dim); border-color: var(--warn); }
-.card--alert { background: var(--alert-dim); border-color: var(--alert); }
-.card-label { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 0.4rem; }
-.card-value { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 0.5rem; }
+.card:hover { border-color: var(--border-strong); }
+.card--warn { background: var(--warn-dim); border-color: rgba(212,149,46,0.25); }
+.card--alert { background: var(--alert-dim); border-color: rgba(217,79,79,0.25); }
+.card-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.35rem; }
+.card-value { font-family: var(--mono); font-size: 1.75rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 0.4rem; }
 .card--warn .card-value { color: var(--warn); }
 .card--alert .card-value { color: var(--alert); }
-.card-detail { font-size: 0.85rem; color: var(--muted); }
+.card-detail { font-size: 0.8rem; color: var(--muted); }
 
-.prop-list { list-style: none; padding: 0; margin-top: 0.5rem; }
-.prop-list li { font-size: 0.8rem; color: var(--muted); padding: 2px 0; }
-.prop-list li::before { content: "• "; color: var(--teal); }
-.empty { font-size: 0.82rem; color: var(--muted); font-style: italic; }
+.prop-list { list-style: none; padding: 0; margin-top: 0.4rem; }
+.prop-list li { font-size: 0.78rem; color: var(--text-2); padding: 1px 0; }
+.prop-list li::before { content: "\\2022\\00a0"; color: var(--accent); font-size: 0.65rem; }
+.empty { font-size: 0.8rem; color: var(--muted); font-style: italic; }
 
 /* ── Charts ── */
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
 }
 @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
-.charts-grid--narrow { grid-template-columns: 1fr; max-width: 400px; }
+.charts-grid--narrow { grid-template-columns: 1fr; max-width: 380px; }
 
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 1.25rem;
 }
-.chart-title { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.chart-card--wide { grid-column: 1 / -1; }
+.chart-title { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
 
-/* ── Tables ── */
-.table-spacer { height: 1.5rem; }
-.table-subtitle { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 1rem 0 0.5rem; }
+/* ── Tables (shared) ── */
+.table-spacer { height: 1.25rem; }
+.table-subtitle { font-size: 0.9rem; font-weight: 600; color: var(--text); margin: 1rem 0 0.5rem; }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   white-space: nowrap;
 }
 .data-table th {
@@ -1035,126 +1102,108 @@ body {
   color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 0.6rem 0.75rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.55rem 0.75rem;
   text-align: center;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
 }
 .data-table th:first-child { text-align: left; }
 .data-table td {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   text-align: center;
-  color: var(--text);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 0.82rem;
 }
-.data-table td:first-child { text-align: left; }
+.data-table td:first-child { text-align: left; font-family: var(--font); }
+.data-table tbody tr { transition: background 0.15s ease; }
 .data-table tbody tr:hover { background: var(--surface2); }
-.city-cell { font-weight: 500; color: var(--text); }
-.today-col { background: var(--teal-dim) !important; color: var(--teal) !important; font-weight: 600; }
-.total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border); }
+.city-cell { font-weight: 500; color: var(--text); font-family: var(--font); }
+.today-col { background: var(--accent-dim) !important; color: var(--accent) !important; font-weight: 700; }
+.total-row td { font-weight: 700; background: var(--surface2); border-top: 2px solid var(--border-strong); }
 
 /* ── Expandable city rows ── */
 .city-row { cursor: pointer; user-select: none; }
 .city-row:hover td { background: var(--surface2); }
-.toggle-arrow { font-size: 0.65rem; margin-right: 0.3rem; display: inline-block; }
-.city-sub-row td { background: var(--surface1); font-size: 0.82rem; color: var(--text-2); }
+.toggle-arrow { font-size: 0.6rem; margin-right: 0.35rem; display: inline-block; color: var(--muted); transition: transform 0.2s ease; }
+.city-sub-row td { background: var(--surface); font-size: 0.8rem; color: var(--text-2); }
 .city-sub-row:hover td { background: var(--surface2); }
-.sub-prop { padding-left: 1.6rem !important; color: var(--text-2); font-style: italic; }
-.sub-check { color: var(--teal); font-weight: 600; }
+.sub-prop { padding-left: 1.6rem !important; color: var(--muted); font-style: italic; font-family: var(--font); }
+.sub-check { color: var(--accent); font-weight: 700; }
 
 /* ── Overdue table ── */
 .overdue-table th { background: var(--alert-dim); color: var(--alert); }
-.days-overdue { color: var(--alert); font-weight: 700; }
-.task-link { color: var(--teal); text-decoration: none; font-size: 0.8rem; }
+.days-overdue { color: var(--alert); font-weight: 700; font-family: var(--mono); }
+.task-link { color: var(--accent); text-decoration: none; font-size: 0.78rem; font-family: var(--font); }
 .task-link:hover { text-decoration: underline; }
 
-/* ── Owner stays table ── */
-.owner-table-wrap {
-  border-left: 4px solid var(--owner);
-  border-radius: var(--radius);
+/* ── Accent-bordered tables (owner stays, workload, stale) ── */
+.owner-table-wrap, .aw-table-wrap, .st-table-wrap {
+  border-radius: var(--radius-sm);
   overflow: hidden;
+  border: 1px solid var(--border);
 }
-.owner-table {
+.owner-table-wrap { border-left: 3px solid var(--accent); }
+.aw-table-wrap { border-left: 3px solid var(--accent); }
+.st-table-wrap { border-left: 3px solid var(--warn); }
+
+.owner-table, .aw-table, .st-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
+  font-size: 0.84rem;
 }
-.owner-table th {
-  background: var(--owner-dim);
-  color: var(--owner);
-  font-size: .75rem;
+.owner-table th, .aw-table th, .st-table th {
+  background: var(--surface2);
+  font-size: .7rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .06em;
   padding: .6rem 1rem;
   text-align: left;
 }
-.owner-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
-.owner-table tbody tr:last-child td { border-bottom: none; }
-.owner-table tbody tr:hover { background: var(--surface2); }
-.os-date { color: var(--owner); font-weight: 600; white-space: nowrap; width: 120px; }
+.owner-table th { color: var(--accent); }
+.aw-table th { color: var(--accent); }
+.st-table th { color: var(--warn); }
+
+.owner-table td, .aw-table td, .st-table td {
+  padding: .6rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.owner-table tbody tr:last-child td,
+.aw-table tbody tr:last-child td,
+.st-table tbody tr:last-child td { border-bottom: none; }
+.owner-table tbody tr:hover,
+.aw-table tbody tr:hover,
+.st-table tbody tr:hover { background: var(--surface2); }
+
+.os-date { color: var(--accent); font-weight: 600; white-space: nowrap; width: 110px; font-family: var(--mono); font-size: 0.82rem; }
 .os-prop { color: var(--text); }
+.os-city { color: var(--muted); font-size: 0.82rem; }
+.os-type { color: var(--muted); font-size: 0.82rem; }
+.os-until { color: var(--text-2); font-family: var(--mono); font-size: 0.82rem; }
+.os-checkout { color: var(--muted); font-family: var(--mono); font-size: 0.82rem; }
 .os-empty { color: var(--muted); font-style: italic; text-align: center; padding: 1.25rem; }
 
-/* ── chart-card--wide (full-width 5th chart) ── */
-.chart-card--wide { grid-column: 1 / -1; }
-
-/* ── Assignee Workload table ── */
-.section-title--teal { color: var(--teal); }
-.aw-table-wrap {
-  border-left: 4px solid var(--teal);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.aw-table { width: 100%; border-collapse: collapse; background: var(--surface); }
-.aw-table th {
-  background: var(--surface2);
-  color: var(--teal);
-  font-size: .75rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  padding: .6rem 1rem;
-  text-align: left;
-}
-.aw-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
-.aw-table tbody tr:last-child td { border-bottom: none; }
-.aw-table tbody tr:hover { background: var(--surface2); }
-.aw-name { color: var(--text); font-weight: 600; }
-.aw-count { color: var(--teal); font-weight: 700; text-align: right; }
+.aw-name { color: var(--text); font-weight: 500; }
+.aw-count { color: var(--accent); font-weight: 700; text-align: right; font-family: var(--mono); }
 .aw-empty { color: var(--muted); font-style: italic; text-align: center; padding: 1.25rem; }
 
-/* ── Stale Tasks table ── */
-.section-title--warn { color: var(--warn); }
-.st-table-wrap {
-  border-left: 4px solid var(--warn);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.st-table { width: 100%; border-collapse: collapse; background: var(--surface); }
-.st-table th {
-  background: var(--warn-dim);
-  color: var(--warn);
-  font-size: .75rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  padding: .6rem 1rem;
-  text-align: left;
-}
-.st-table td { padding: .6rem 1rem; border-bottom: 1px solid var(--border); }
-.st-table tbody tr:last-child td { border-bottom: none; }
-.st-table tbody tr:hover { background: var(--surface2); }
-.st-prop { color: var(--muted); font-size: .85rem; }
+.st-prop { color: var(--muted); font-size: .82rem; }
 .st-task { color: var(--text); }
-.st-date { color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.st-days { color: var(--warn); font-weight: 700; white-space: nowrap; }
+.st-date { color: var(--muted); font-size: .82rem; white-space: nowrap; font-family: var(--mono); }
+.st-days { color: var(--warn); font-weight: 700; white-space: nowrap; font-family: var(--mono); }
 
 /* ── Footer ── */
 .site-footer {
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 2.5rem 1rem;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   border-top: 1px solid var(--border);
   margin-top: 3rem;
+  letter-spacing: 0.02em;
 }
 """

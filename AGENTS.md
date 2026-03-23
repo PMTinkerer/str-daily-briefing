@@ -67,7 +67,7 @@ fetch emails → parse → compute KPIs → classify stale tasks → generate na
 - Columns: CHECK-IN, CHECK-OUT, LISTING, LISTING'S NICKNAME, LISTING'S CITY, CREATION DATE,
   PLATFORM, COMMISSION, TOTAL PAYOUT, ACCOMMODATION FARE, SOURCE, CHANNEL RESERVATION ID
 - Date format: "YYYY-MM-DD HH:MM AM/PM"
-- COMMISSION = our management fee — primary revenue metric. Filter by `creation_date` for MTD/YTD, NOT `check_in`.
+- COMMISSION = our management fee — primary revenue metric. MTD filters by `creation_date`; YTD filters by `check_in`.
 - SOURCE field: "owner" and "owner-guest" = no-revenue stays requiring special attention
 - listing_name: prefers NICKNAME column; falls back to text before " / " in LISTING column
 
@@ -94,7 +94,7 @@ fetch emails → parse → compute KPIs → classify stale tasks → generate na
   "revenue": {
       "total_commission": float,   # sum of all reservations in Guesty export
       "mtd_commission": float,     # filtered by creation_date (booking date) this month
-      "ytd_commission": float,     # filtered by creation_date this year — resets Jan 1
+      "ytd_commission": float,     # filtered by check_in this year — total commission on the books for the calendar year
       "avg_commission_per_reservation": float,
       "commission_by_property": {...},  # top 10
       "commission_by_platform": {...},
@@ -171,10 +171,13 @@ The narrative prompt in `src/narrative.py` is intentionally factual and non-dire
 - Breezeway CSV has a UTF-8 BOM — always strip with `csv_content.lstrip("\ufeff")` before parsing
 - Property names differ between Guesty and Breezeway — use `_lookup_city()` prefix matching, do not exact-match
 - Properties range from 8 (winter) to 50+ (summer) — never hardcode property lists
-- MTD/YTD commission must filter by `creation_date`, NOT `check_in` — a previous bug used `check_in` and caused the numbers to appear stuck
+- MTD commission filters by `creation_date` (booking date) — tracks new revenue booked this month
+- YTD commission filters by `check_in` (stay date) — total commission on the books for the calendar year
 
 ## Handoff Notes
-When stopping or switching tools, note here:
-- What you changed (files + intent)
-- Commands run and results
-- What remains / next steps
+**Last session (2026-03-12):**
+- **Changed**: `src/kpi.py` — YTD commission now filters by `check_in` (stay date) instead of `creation_date` (booking date). This makes it "total commission on the books for the calendar year."
+- **Changed**: `tests/test_kpi.py` — added R6 fixture (2025 check-in, 2026 creation_date) to verify YTD excludes prior-year stays. Updated test comments.
+- **Changed**: `CLAUDE.md`, `AGENTS.md`, `MEMORY.md` — updated commission filter docs to reflect the three buckets: yesterday (creation_date), MTD (creation_date), YTD (check_in).
+- **Tests**: 53 passed. Dry-run passed.
+- **Not yet committed** — all changes are unstaged.

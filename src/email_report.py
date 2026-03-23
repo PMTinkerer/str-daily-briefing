@@ -33,10 +33,13 @@ def build_email_html(
     overdue        = today.get("overdue_tasks", [])
     hp_overdue     = today.get("high_priority_overdue", [])
 
+    first_stays = kpis.get("first_stays_of_year", [])
+
     header_html     = _render_header(long_date)
     numbers_html    = _render_key_numbers(checkins, checkouts, turns, len(overdue))
     narrative_html  = _render_narrative(narrative)
     alert_html      = _render_alert(overdue, hp_overdue)
+    first_html      = _render_first_stays(first_stays)
     cta_html        = _render_cta(dashboard_url)
     footer_html     = _render_footer()
 
@@ -45,6 +48,7 @@ def build_email_html(
         + numbers_html
         + narrative_html
         + alert_html
+        + first_html
         + cta_html
         + footer_html
     )
@@ -165,6 +169,44 @@ def _render_alert(overdue: list, hp_overdue: list) -> str:
       <p style="margin:0;font-weight:700;color:#b91c1c;font-size:14px;">{heading}</p>
       {list_html}
     </div>
+  </td>
+</tr>"""
+
+
+def _render_first_stays(first_stays: list[dict]) -> str:
+    if not first_stays:
+        return ""
+
+    rows = "".join(
+        f'<tr>'
+        f'<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;">'
+        f'{html.escape(s["check_in"])}</td>'
+        f'<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;">'
+        f'{html.escape(s["listing_name"])}'
+        f'{" (" + html.escape(s["city"]) + ")" if s.get("city") else ""}</td>'
+        f'<td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;">'
+        f'in {s["days_until"]}d</td>'
+        f'</tr>'
+        for s in first_stays
+    )
+
+    return f"""\
+<tr>
+  <td style="padding:16px 32px 8px;">
+    <p style="margin:0 0 8px;font-weight:700;font-size:14px;color:#0f172a;">
+      Season Openers — First Stays of the Year</p>
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+           style="border-collapse:collapse;">
+      <tr style="background-color:#f8fafc;">
+        <th style="padding:6px 8px;text-align:left;font-size:12px;color:#64748b;
+                   text-transform:uppercase;letter-spacing:.05em;">Check-in</th>
+        <th style="padding:6px 8px;text-align:left;font-size:12px;color:#64748b;
+                   text-transform:uppercase;letter-spacing:.05em;">Property</th>
+        <th style="padding:6px 8px;text-align:left;font-size:12px;color:#64748b;
+                   text-transform:uppercase;letter-spacing:.05em;">In</th>
+      </tr>
+      {rows}
+    </table>
   </td>
 </tr>"""
 

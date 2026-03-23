@@ -139,4 +139,5 @@ Requires `gmail.send` scope.
 - Breezeway CSV has a UTF-8 BOM — always strip before parsing
 - Property names differ slightly between Guesty and Breezeway — city lookup uses prefix matching
 - The number of properties changes seasonally (8 in winter, 50+ in summer) — never hardcode property lists
-- MTD and YTD commission filter by `creation_date` (booking date), NOT `check_in` date
+- MTD commission filters by `creation_date` (booking date) — new revenue booked this month
+- YTD commission filters by `check_in` (stay date) — total commission on the books for the calendar year
