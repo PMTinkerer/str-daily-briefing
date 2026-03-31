@@ -45,7 +45,7 @@ jobs:
         run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
 
       - name: Restore spend log
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: spend_log.json
           key: spend-log-${{ steps.month.outputs.value }}
@@ -63,7 +63,7 @@ jobs:
 
       - name: Save spend log
         if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: spend_log.json
           key: spend-log-${{ steps.month.outputs.value }}-${{ github.run_number }}
