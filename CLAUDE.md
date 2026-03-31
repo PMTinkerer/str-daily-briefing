@@ -141,3 +141,7 @@ Requires `gmail.send` scope.
 - The number of properties changes seasonally (8 in winter, 50+ in summer) — never hardcode property lists
 - MTD commission filters by `creation_date` (booking date) — new revenue booked this month
 - YTD commission filters by `check_in` (stay date) — total commission on the books for the calendar year
+
+## Supply Chain Security
+
+This project follows the global supply chain security standard defined in `~/CLAUDE.md`. All dependencies must be pinned to exact versions, GitHub Actions must be SHA-pinned, and pip-audit must run in CI.

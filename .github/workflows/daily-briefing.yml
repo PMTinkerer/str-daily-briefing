@@ -15,17 +15,22 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Audit dependencies for vulnerabilities
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
 
       - name: Decode Gmail credentials
         env:
@@ -34,6 +39,17 @@ jobs:
         run: |
           echo "$GMAIL_CREDENTIALS_JSON" | base64 -d > credentials.json
           echo "$GMAIL_TOKEN_JSON"        | base64 -d > token.json
+
+      - name: Get current month
+        id: month
+        run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore spend log
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: spend_log.json
+          key: spend-log-${{ steps.month.outputs.value }}
+          restore-keys: spend-log-
 
       - name: Run daily briefing
         env:
@@ -44,6 +60,13 @@ jobs:
           DASHBOARD_URL: https://pmtinkerer.github.io/str-daily-briefing/
 
         run: python3 -m src.main
+
+      - name: Save spend log
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: spend_log.json
+          key: spend-log-${{ steps.month.outputs.value }}-${{ github.run_number }}
 
       - name: Commit updated dashboard
         run: |
