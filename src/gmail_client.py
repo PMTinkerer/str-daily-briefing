@@ -57,6 +57,7 @@ def authenticate() -> Resource:
 
         with open(token_path, "w") as token_file:
             token_file.write(creds.to_json())
+        os.chmod(token_path, 0o600)
         logger.info("Saved credentials to %s", token_path)
 
     service = build("gmail", "v1", credentials=creds)

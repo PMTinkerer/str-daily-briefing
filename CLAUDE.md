@@ -9,7 +9,7 @@ extracts key business metrics, and sends a formatted daily briefing email each m
 - Gmail API (google-api-python-client, google-auth-oauthlib) for reading and sending email
 - BeautifulSoup4 for parsing HTML email bodies (Guesty reports)
 - csv module (stdlib) for parsing CSV attachments (Breezeway reports)
-- Anthropic API (claude-sonnet-4-5 for narrative, claude-haiku-4-5 for task classification)
+- Anthropic API (claude-sonnet-4-6 for narrative, claude-haiku-4-5 for task classification)
 - GitHub Actions for scheduled daily execution at 4:30 AM EDT (8:30 UTC)
 
 ## Project Structure
@@ -28,7 +28,7 @@ str-daily-briefing/
 │   ├── gmail_client.py      # Gmail API auth, fetch emails, send emails
 │   ├── email_report.py      # Build compact inline-HTML email summary (phone-friendly)
 │   ├── dashboard.py         # Build full self-contained HTML dashboard (saved to docs/)
-│   ├── narrative.py         # Generate morning briefing narrative via Claude API (sonnet-4-5)
+│   ├── narrative.py         # Generate morning briefing narrative via Claude API (sonnet-4-6)
 │   ├── kpi.py               # Aggregate parsed data into KPI snapshot
 │   ├── task_classifier.py   # Classify stale tasks as issues vs. scheduled via Claude Haiku
 │   ├── parsers/

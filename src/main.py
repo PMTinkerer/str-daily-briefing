@@ -131,14 +131,25 @@ def run_daily_briefing() -> None:
         logger.info("Daily briefing complete (no email sent).")
         return
 
-    subject = (
-        "Daily Briefing \u2014 "
-        + datetime.strptime(report_date, "%Y-%m-%d").strftime("%B %-d, %Y")
-    )
+    try:
+        subject = (
+            "Daily Briefing \u2014 "
+            + datetime.strptime(report_date, "%Y-%m-%d").strftime("%B %-d, %Y")
+        )
+    except ValueError:
+        logger.error("Invalid REPORT_DATE format: %s (expected YYYY-MM-DD)", report_date)
+        sys.exit(1)
     ok = send_email(service, BRIEFING_RECIPIENTS, subject, email_html)
     if not ok:
         logger.error("Email delivery failed")
         sys.exit(1)
+
+    # Log monthly API spend summary
+    from src.config import SPENDING_BUDGET_USD, SPENDING_LOG_PATH
+    from src.spending_guard import load_ledger, monthly_total
+    spend_ledger = load_ledger(Path(SPENDING_LOG_PATH))
+    spend_total = monthly_total(spend_ledger)
+    logger.info("Monthly API spend: $%.2f / $%.2f budget", spend_total, SPENDING_BUDGET_USD)
 
     logger.info("Daily briefing complete.")
 

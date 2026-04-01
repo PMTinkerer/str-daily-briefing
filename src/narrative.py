@@ -7,15 +7,20 @@ import logging
 import os
 from datetime import date, timedelta
 
+from pathlib import Path
+
 import anthropic
 from dotenv import load_dotenv
+
+from src.config import SPENDING_BUDGET_USD, SPENDING_LOG_PATH, SPENDING_WARN_THRESHOLD
+from src.spending_guard import can_spend, load_ledger, record_spend, save_ledger
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# User explicitly specified claude-sonnet-4-5
-MODEL = "claude-sonnet-4-5"
+# User explicitly specified claude-sonnet-4-6
+MODEL = "claude-sonnet-4-6"
 
 SYSTEM_PROMPT = (
     "You are a daily briefing writer for a short-term rental management company "
@@ -65,6 +70,12 @@ def generate_narrative(kpis: dict, report_date: str) -> str:
         f"KPIs:\n{json.dumps(kpis, indent=2, default=str)}"
     )
 
+    ledger = load_ledger(Path(SPENDING_LOG_PATH))
+    if not can_spend(ledger, SPENDING_BUDGET_USD, estimated_cost=0.15,
+                     warn_threshold=SPENDING_WARN_THRESHOLD):
+        logger.warning("Monthly budget exceeded — using fallback narrative")
+        return _fallback_narrative(kpis, report_date)
+
     try:
         client = anthropic.Anthropic(api_key=api_key)
         # Use streaming to avoid HTTP timeouts with large KPI payloads
@@ -75,6 +86,13 @@ def generate_narrative(kpis: dict, report_date: str) -> str:
             messages=[{"role": "user", "content": user_message}],
         ) as stream:
             final = stream.get_final_message()
+
+        usage = final.usage
+        cost = record_spend(ledger, "anthropic", MODEL,
+                            usage.input_tokens, usage.output_tokens, "narrative")
+        save_ledger(ledger, Path(SPENDING_LOG_PATH))
+        logger.info("Narrative API cost: $%.4f (in=%d, out=%d tokens)",
+                     cost, usage.input_tokens, usage.output_tokens)
 
         return final.content[0].text
 

@@ -56,7 +56,7 @@ fetch emails → parse → compute KPIs → classify stale tasks → generate na
 - `src/parsers/breezeway.py` — parses Breezeway CSV attachment into task dicts
 - `src/kpi.py` — aggregates parsed data into KPI snapshot
 - `src/task_classifier.py` — Claude Haiku classifies stale tasks as issues vs. scheduled work
-- `src/narrative.py` — generates morning briefing text via Claude sonnet-4-5
+- `src/narrative.py` — generates morning briefing text via Claude sonnet-4-6
 - `src/email_report.py` — builds phone-friendly HTML email
 - `src/dashboard.py` — builds full HTML dashboard saved to docs/index.html
 
@@ -108,6 +108,9 @@ fetch emails → parse → compute KPIs → classify stale tasks → generate na
       {"listing_name": str, "city": str, "check_in": str, "check_out": str,
        "source": str, "days_until": int},
   ],
+  "first_stays_of_year": [  # properties whose first guest check-in of the year is within 45 days
+      {"listing_name": str, "city": str, "check_in": str, "days_until": int},
+  ],
   "operations_detail": {
       "tasks_by_department_all": {...},
       "assignee_workload_7_days": {...},
@@ -139,10 +142,20 @@ The narrative prompt in `src/narrative.py` is intentionally factual and non-dire
 - **Do** surface useful context: next check-in date at properties with open issues, whether a task was guest-initiated
 - Let facts inform decisions — do not tell the team what to do or assign urgency
 
+## First Stays of the Year
+- `_compute_first_stays_of_year()` in `src/kpi.py` — 45-day lookahead
+- For each property, finds the earliest guest check-in of the calendar year (excludes owner/owner-guest stays)
+- If that first stay is upcoming (>= today, <= today + 45 days), surfaces it
+- Properties whose first stay already happened are excluded
+- Output: `{listing_name, city, check_in, days_until}` sorted by check_in
+- Rendered in both dashboard and email report
+
 ## Dashboard Features
-- Operations-first layout: Today → 7-day rolling → owner stays → charts → overdue → stale
-- Check-ins by City and Arrival Inspections by City tables are expandable (click city row to reveal per-property ✓/— grid)
+- Design: DM Sans + JetBrains Mono fonts, dark theme (#111318 bg), teal accent (#3db8c1), no emojis
+- Operations-first layout: Today → 7-day rolling → workload → owner stays → season openers → charts → overdue → stale
+- Check-ins by City and Arrival Inspections by City tables are expandable (click city row to reveal per-property grid)
 - Expandable table JS uses `toggleCity(groupId)` with prefixes `"ci-"` (check-ins) and `"insp-"` (inspections) to avoid ID collisions
+- Stat cards use 4-column grid on desktop, 2 on mobile; numbers in monospace font
 
 ## Coding Standards
 - Type hints on all function signatures
@@ -175,9 +188,11 @@ The narrative prompt in `src/narrative.py` is intentionally factual and non-dire
 - YTD commission filters by `check_in` (stay date) — total commission on the books for the calendar year
 
 ## Handoff Notes
-**Last session (2026-03-12):**
-- **Changed**: `src/kpi.py` — YTD commission now filters by `check_in` (stay date) instead of `creation_date` (booking date). This makes it "total commission on the books for the calendar year."
-- **Changed**: `tests/test_kpi.py` — added R6 fixture (2025 check-in, 2026 creation_date) to verify YTD excludes prior-year stays. Updated test comments.
-- **Changed**: `CLAUDE.md`, `AGENTS.md`, `MEMORY.md` — updated commission filter docs to reflect the three buckets: yesterday (creation_date), MTD (creation_date), YTD (check_in).
-- **Tests**: 53 passed. Dry-run passed.
-- **Not yet committed** — all changes are unstaged.
+**Last session (2026-03-23):**
+- **Added**: `_compute_first_stays_of_year()` in `src/kpi.py` — 45-day lookahead for properties opening for the season
+- **Added**: `_render_first_stays()` in `src/dashboard.py` and `src/email_report.py`
+- **Added**: 6 new tests in `tests/test_kpi.py` for first stays (+ `source` param on `_make_reservation()`)
+- **Redesigned**: Dashboard CSS — DM Sans + JetBrains Mono fonts, unified teal accent (removed purple), desaturated palette, left-aligned header, 4-col card grid, monospace numbers, removed all emojis
+- **Tests**: 59 passed. Dry-run passed.
+- **Committed and pushed**: `3669355 feat: first stays of year + dashboard redesign`
+- **Still unstaged from prior sessions**: spending_guard.py, config.py, gmail_client.py, main.py, narrative.py, task_classifier.py, workflow, gitignore changes

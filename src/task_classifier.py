@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 
 import anthropic
+
+from src.config import SPENDING_BUDGET_USD, SPENDING_LOG_PATH, SPENDING_WARN_THRESHOLD
+from src.spending_guard import can_spend, load_ledger, record_spend, save_ledger
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +59,12 @@ def classify_stale_tasks(tasks: list[dict], api_key: str) -> list[dict]:
         for i, t in enumerate(tasks)
     ]
 
+    ledger = load_ledger(Path(SPENDING_LOG_PATH))
+    if not can_spend(ledger, SPENDING_BUDGET_USD, estimated_cost=0.01,
+                     warn_threshold=SPENDING_WARN_THRESHOLD):
+        logger.warning("Monthly budget exceeded — using keyword fallback for task classification")
+        return _keyword_fallback(tasks)
+
     try:
         client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
@@ -79,6 +89,14 @@ def classify_stale_tasks(tasks: list[dict], api_key: str) -> list[dict]:
                 }
             },
         )
+
+        usage = response.usage
+        cost = record_spend(ledger, "anthropic", _MODEL,
+                            usage.input_tokens, usage.output_tokens, "task_classifier")
+        save_ledger(ledger, Path(SPENDING_LOG_PATH))
+        logger.info("Task classifier API cost: $%.4f (in=%d, out=%d tokens)",
+                     cost, usage.input_tokens, usage.output_tokens)
+
         result = json.loads(response.content[0].text)
         issue_indices = set(result.get("issue_indices", []))
         filtered = [t for i, t in enumerate(tasks) if i in issue_indices]
