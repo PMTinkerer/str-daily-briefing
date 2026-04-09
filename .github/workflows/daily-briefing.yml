@@ -58,7 +58,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BRIEFING_RECIPIENTS: ${{ secrets.BRIEFING_RECIPIENTS }}
           DASHBOARD_URL: https://pmtinkerer.github.io/str-daily-briefing/
-
+          HEALTHCHECK_PING_URL: ${{ secrets.HEALTHCHECK_PING_URL }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: "IT@scmaine.com"
         run: python3 -m src.main
 
       - name: Save spend log

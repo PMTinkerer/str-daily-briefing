@@ -7,9 +7,8 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
+import requests as _requests
 from dotenv import load_dotenv
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -23,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
 ]
+
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "IT@scmaine.com")
 
 
 def authenticate() -> Resource:
@@ -197,33 +198,27 @@ def _walk_parts(
         _walk_parts(service, message_id, sub_part, body_html_ref, attachments)
 
 
-def send_email(
-    service: Resource,
-    to: list[str],
-    subject: str,
-    html_body: str,
-) -> bool:
-    """Send an HTML email from the authenticated Gmail account.
-
-    Args:
-        service: Authenticated Gmail API service resource.
-        to: List of recipient email addresses.
-        subject: Email subject line.
-        html_body: HTML string for the email body.
-
-    Returns:
-        True on success, False on failure (error is logged, not raised).
-    """
+def send_email(to: list[str], subject: str, body: str, html: bool = True) -> bool:
+    if not RESEND_API_KEY:
+        logger.error("RESEND_API_KEY not set — cannot send email")
+        return False
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = "me"
-        msg["To"] = ", ".join(to)
-        msg.attach(MIMEText(html_body, "html"))
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-        service.users().messages().send(userId="me", body={"raw": raw}).execute()
-        logger.info("Email sent to %d recipient(s): %s", len(to), subject)
-        return True
+        resp = _requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": EMAIL_FROM,
+                "to": to,
+                "subject": subject,
+                "html" if html else "text": body,
+            },
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            logger.info("Email sent to %d recipient(s): %s", len(to), subject)
+            return True
+        logger.error("Resend API error: %s %s", resp.status_code, resp.text)
+        return False
     except Exception:
         logger.error("Failed to send email", exc_info=True)
         return False

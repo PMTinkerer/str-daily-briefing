@@ -139,7 +139,7 @@ def run_daily_briefing() -> None:
     except ValueError:
         logger.error("Invalid REPORT_DATE format: %s (expected YYYY-MM-DD)", report_date)
         sys.exit(1)
-    ok = send_email(service, BRIEFING_RECIPIENTS, subject, email_html)
+    ok = send_email(BRIEFING_RECIPIENTS, subject, email_html)
     if not ok:
         logger.error("Email delivery failed")
         sys.exit(1)
@@ -153,10 +153,39 @@ def run_daily_briefing() -> None:
 
     logger.info("Daily briefing complete.")
 
+    # Ping Healthchecks.io dead-man-switch on successful run
+    ping_url = os.environ.get("HEALTHCHECK_PING_URL")
+    if ping_url:
+        try:
+            import requests as _req
+            _req.get(ping_url, timeout=10)
+        except Exception:
+            pass
+
+
+def _send_pushover_crash(title: str, message: str) -> None:
+    """Send a Pushover alert on unhandled crash. Non-fatal."""
+    try:
+        import requests as _req
+        token = os.environ.get("PUSHOVER_API_TOKEN", "")
+        user = os.environ.get("PUSHOVER_USER_KEY", "")
+        if token and user:
+            _req.post("https://api.pushover.net/1/messages.json", data={
+                "token": token, "user": user,
+                "title": title, "message": message[:1024], "priority": 1,
+            }, timeout=10)
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    run_daily_briefing()
+    try:
+        run_daily_briefing()
+    except Exception as exc:
+        logger.exception("Unhandled exception in daily briefing")
+        _send_pushover_crash("STR Daily Briefing CRASH", str(exc))
+        sys.exit(1)
