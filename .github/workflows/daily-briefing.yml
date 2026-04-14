@@ -28,9 +28,27 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Audit dependencies for vulnerabilities
+        id: audit
+        continue-on-error: true
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt
+
+      - name: Alert on vulnerability findings
+        if: steps.audit.outcome == 'failure'
+        env:
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+        run: |
+          echo "::warning::pip-audit found vulnerabilities — briefing will still send"
+          if [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
+            curl -s -X POST https://api.pushover.net/1/messages.json \
+              -d token="$PUSHOVER_API_TOKEN" \
+              -d user="$PUSHOVER_USER_KEY" \
+              -d title="str-daily-briefing: pip-audit failed" \
+              -d message="Dependency vulnerability found. Briefing still sent. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              -d priority=0
+          fi
 
       - name: Decode Gmail credentials
         env:
