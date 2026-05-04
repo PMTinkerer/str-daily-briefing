@@ -1,120 +1,24 @@
-name: Daily Briefing
+name: Daily Briefing (sunset)
 
+# SUNSET 2026-05-04 — the daily briefing now ships from `scmaine-helm`
+# (Railway, in-process scheduler at 04:30 America/New_York). This
+# project is archived; the schedule trigger is removed so it never
+# fires again. workflow_dispatch is retained only so an operator can
+# manually confirm the workflow really is dormant.
 on:
-  schedule:
-    # 4:30 AM ET = 08:30 UTC (EDT / UTC-4); in EST (UTC-5) this fires at 3:30 AM
-    - cron: "30 8 * * *"
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
-  contents: write # Required to push docs/index.html back to the repo
+  contents: read
 
 jobs:
-  send-briefing:
+  sunset-notice:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Audit dependencies for vulnerabilities
-        id: audit
-        continue-on-error: true
+      - name: Project sunset
         run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt
-
-      - name: Alert on vulnerability findings
-        if: steps.audit.outcome == 'failure'
-        env:
-          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
-          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
-        run: |
-          echo "::warning::pip-audit found vulnerabilities — briefing will still send"
-          if [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
-            curl -s -X POST https://api.pushover.net/1/messages.json \
-              -d token="$PUSHOVER_API_TOKEN" \
-              -d user="$PUSHOVER_USER_KEY" \
-              -d title="str-daily-briefing: pip-audit failed" \
-              -d message="Dependency vulnerability found. Briefing still sent. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              -d priority=0
-          fi
-
-      - name: Decode Gmail credentials
-        env:
-          GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
-          GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
-        run: |
-          echo "$GMAIL_CREDENTIALS_JSON" | base64 -d > credentials.json
-          echo "$GMAIL_TOKEN_JSON"        | base64 -d > token.json
-
-      - name: Get current month
-        id: month
-        run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore spend log
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: spend_log.json
-          key: spend-log-${{ steps.month.outputs.value }}
-          restore-keys: spend-log-
-
-      - name: Run daily briefing
-        env:
-          GMAIL_CREDENTIALS_PATH: credentials.json
-          GMAIL_TOKEN_PATH: token.json
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BRIEFING_RECIPIENTS: ${{ secrets.BRIEFING_RECIPIENTS }}
-          DASHBOARD_URL: https://pmtinkerer.github.io/str-daily-briefing/
-          HEALTHCHECK_PING_URL: ${{ secrets.HEALTHCHECK_PING_URL }}
-          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
-          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          EMAIL_FROM: "IT@scmaine.com"
-        run: python3 -m src.main
-
-      - name: Save spend log
-        if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: spend_log.json
-          key: spend-log-${{ steps.month.outputs.value }}-${{ github.run_number }}
-
-      - name: Commit updated dashboard
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
-          if git diff --staged --quiet; then
-            echo "docs/index.html unchanged — nothing to commit"
-          else
-            git commit -m "chore: update dashboard [skip ci]"
-            git push
-          fi
-
-      # Persists the refreshed token.json back to GitHub Secrets so future runs
-      # start with a valid access token rather than re-refreshing from scratch.
-      # Requires a PAT with 'repo' scope stored as secret GH_PAT.
-      # If GH_PAT is not set, the script exits cleanly — the run still succeeds
-      # because google-auth will auto-refresh using the stored refresh token.
-      - name: Persist refreshed token to GitHub Secrets
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "GH_PAT not configured — skipping token refresh persistence"
-            exit 0
-          fi
-          NEW_TOKEN=$(base64 -w 0 token.json)
-          gh secret set GMAIL_TOKEN_JSON --body "$NEW_TOKEN" \
-            --repo ${{ github.repository }}
+          echo "::warning::str-daily-briefing is sunset as of 2026-05-04."
+          echo "The daily briefing now runs from scmaine-helm:"
+          echo "  https://github.com/PMTinkerer/scmaine-helm"
+          echo "  https://helm-production-2afa.up.railway.app"
+          echo "Nothing was sent."
